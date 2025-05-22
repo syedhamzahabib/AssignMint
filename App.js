@@ -5,6 +5,9 @@ import { Text, View } from 'react-native';
 import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
 
+// Try to import MyTasksScreen - if this fails, we'll see an error
+import MyTasksScreen from './screens/MyTasksScreen';
+
 const Tab = createBottomTabNavigator();
 
 const PlaceholderScreen = ({ name }) => (
@@ -14,12 +17,14 @@ const PlaceholderScreen = ({ name }) => (
 );
 
 export default function App() {
+  console.log('App is loading...'); // Add this to see if App loads
+  
   return (
     <NavigationContainer>
       <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Post" component={PostScreen} />
-        <Tab.Screen name="MyTasks" children={() => <PlaceholderScreen name="My Tasks" />} />
+        <Tab.Screen name="MyTasks" component={MyTasksScreen} />
         <Tab.Screen name="Notifications" children={() => <PlaceholderScreen name="Notifications" />} />
         <Tab.Screen name="Profile" children={() => <PlaceholderScreen name="Profile" />} />
       </Tab.Navigator>
