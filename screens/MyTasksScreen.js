@@ -8,10 +8,79 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
-import { dummyRequesterTasks, dummyExpertTasks } from '../data/dummyMyTasks';
+
+// Using your existing dummy data for now
+const dummyRequesterTasks = [
+  {
+    id: 'req_1',
+    title: 'Solve 10 Calculus Problems',
+    dueDate: '2025-05-25',
+    status: 'in_progress',
+    expertName: 'Sarah Chen',
+    subject: 'Math',
+    price: '$20',
+  },
+  {
+    id: 'req_2',
+    title: 'Fix bugs in Python script',
+    dueDate: '2025-05-22',
+    status: 'pending_review',
+    expertName: 'Alex Kumar',
+    subject: 'Coding',
+    price: '$30',
+  },
+  {
+    id: 'req_3',
+    title: 'Write 500-word essay on Civil War',
+    dueDate: '2025-05-24',
+    status: 'completed',
+    expertName: 'Emily Rodriguez',
+    subject: 'Writing',
+    price: '$15',
+  },
+  {
+    id: 'req_4',
+    title: 'Design a logo for student group',
+    dueDate: '2025-05-26',
+    status: 'awaiting_expert',
+    expertName: null,
+    subject: 'Design',
+    price: '$18',
+  },
+];
+
+const dummyExpertTasks = [
+  {
+    id: 'exp_1',
+    title: 'Translate English to Spanish document',
+    dueDate: '2025-05-27',
+    status: 'working',
+    requesterName: 'John Smith',
+    subject: 'Language',
+    price: '$22',
+  },
+  {
+    id: 'exp_2',
+    title: 'Build basic website in HTML/CSS',
+    dueDate: '2025-05-28',
+    status: 'delivered',
+    requesterName: 'Maria Garcia',
+    subject: 'Coding',
+    price: '$40',
+  },
+  {
+    id: 'exp_3',
+    title: 'Solve Statistics homework problems',
+    dueDate: '2025-05-23',
+    status: 'payment_received',
+    requesterName: 'David Park',
+    subject: 'Statistics',
+    price: '$25',
+  },
+];
 
 const MyTasksScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('requester'); // 'requester' or 'expert'
+  const [activeTab, setActiveTab] = useState('requester');
 
   // Calculate days left until due date
   const calculateDaysLeft = (dueDate) => {
@@ -29,47 +98,103 @@ const MyTasksScreen = ({ navigation }) => {
   // Get status display text and color
   const getStatusInfo = (status) => {
     const statusMap = {
-      // Requester statuses
       in_progress: { text: '🔄 In Progress', color: '#2196f3' },
       pending_review: { text: '⏳ Pending Review', color: '#ff9800' },
       completed: { text: '✅ Completed', color: '#4caf50' },
       awaiting_expert: { text: '👀 Finding Expert', color: '#9c27b0' },
-      disputed: { text: '⚠️ Disputed', color: '#f44336' },
-      cancelled: { text: '❌ Cancelled', color: '#757575' },
-      
-      // Expert statuses
       working: { text: '🔨 Working', color: '#2196f3' },
       delivered: { text: '📤 Delivered', color: '#ff9800' },
       payment_received: { text: '💰 Payment Received', color: '#4caf50' },
-      revision_requested: { text: '🔄 Revision Requested', color: '#ff5722' },
     };
-    
     return statusMap[status] || { text: status, color: '#757575' };
   };
 
-  // Handle action buttons
+  // 🔥 WORKING ACTION HANDLERS - These will actually do something!
   const handleAction = (action, task) => {
     switch (action) {
       case 'review':
-        Alert.alert('Review & Approve', `Review task: ${task.title}`);
+        Alert.alert(
+          '✅ Review & Approve',
+          `Review task: "${task.title}"\n\nWould you like to approve this task?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Approve ✅', 
+              onPress: () => {
+                Alert.alert('Success!', 'Task approved successfully! 🎉');
+                // Here you would update the task status
+              }
+            }
+          ]
+        );
         break;
       case 'dispute':
-        Alert.alert('Dispute Task', `Dispute task: ${task.title}`);
+        Alert.alert(
+          '🚩 File Dispute',
+          `Dispute task: "${task.title}"\n\nPlease provide a reason for the dispute.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'File Dispute 🚩', 
+              style: 'destructive',
+              onPress: () => {
+                Alert.alert('Dispute Filed', 'Your dispute has been submitted for review.');
+              }
+            }
+          ]
+        );
         break;
       case 'cancel':
-        Alert.alert('Cancel Task', `Cancel task: ${task.title}`);
+        Alert.alert(
+          '❌ Cancel Task',
+          `Cancel task: "${task.title}"\n\nThis action cannot be undone.`,
+          [
+            { text: 'Keep Task', style: 'cancel' },
+            { 
+              text: 'Cancel Task ❌', 
+              style: 'destructive',
+              onPress: () => {
+                Alert.alert('Task Cancelled', 'Task has been cancelled successfully.');
+              }
+            }
+          ]
+        );
         break;
       case 'edit':
-        Alert.alert('Edit Task', `Edit task: ${task.title}`);
+        Alert.alert(
+          '🟨 Edit Task',
+          `Edit task: "${task.title}"\n\nThis would open the edit screen.`,
+          [
+            { text: 'Close', style: 'cancel' },
+            { 
+              text: 'Edit Task 🟨', 
+              onPress: () => {
+                Alert.alert('Edit Mode', 'Task edit screen would open here!');
+              }
+            }
+          ]
+        );
         break;
       case 'upload':
-        Alert.alert('Upload Delivery', `Upload files for: ${task.title}`);
+        Alert.alert(
+          '🟩 Upload Delivery',
+          `Upload files for: "${task.title}"\n\nThis would open the file picker.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Upload Files 📁', 
+              onPress: () => {
+                Alert.alert('Files Uploaded', 'Your delivery has been uploaded! 📤');
+              }
+            }
+          ]
+        );
         break;
       case 'awaiting':
-        Alert.alert('Awaiting Approval', `Waiting for approval: ${task.title}`);
+        Alert.alert('📤 Awaiting Approval', `Waiting for approval on: "${task.title}"`);
         break;
       case 'payment':
-        Alert.alert('Payment Info', `Payment details for: ${task.title}`);
+        Alert.alert('💰 Payment Received', `Payment details for: "${task.title}"`);
         break;
       default:
         Alert.alert('Action', `${action} for ${task.title}`);
@@ -170,14 +295,27 @@ const MyTasksScreen = ({ navigation }) => {
     }
   };
 
-  // Render individual task card
+  // 🎯 CLICKABLE TASK CARD - Now with tap functionality!
   const renderTaskCard = ({ item }) => {
     const isRequester = activeTab === 'requester';
     const statusInfo = getStatusInfo(item.status);
     const daysLeft = calculateDaysLeft(item.dueDate);
     
     return (
-      <View style={styles.taskCard}>
+      <TouchableOpacity 
+        style={styles.taskCard}
+        onPress={() => {
+          Alert.alert(
+            '📋 Task Details',
+            `Task: ${item.title}\nPrice: ${item.price}\nStatus: ${statusInfo.text}\nDue: ${item.dueDate}`,
+            [
+              { text: 'Close', style: 'cancel' },
+              { text: 'View Details 👀', onPress: () => Alert.alert('Details', 'Full task details would open here!') }
+            ]
+          );
+        }}
+        activeOpacity={0.7}
+      >
         {/* Task Header */}
         <View style={styles.taskHeader}>
           <Text style={styles.taskTitle}>📌 {item.title}</Text>
@@ -199,15 +337,11 @@ const MyTasksScreen = ({ navigation }) => {
         {/* Role-specific info */}
         <View style={styles.roleInfo}>
           {isRequester ? (
-            <View style={styles.expertInfo}>
-              <Text style={styles.roleLabel}>
-                {item.expertName ? `👤 Expert: ${item.expertName}` : '👀 No expert assigned yet'}
-              </Text>
-            </View>
+            <Text style={styles.roleLabel}>
+              {item.expertName ? `👤 Expert: ${item.expertName}` : '👀 No expert assigned yet'}
+            </Text>
           ) : (
-            <View style={styles.requesterInfo}>
-              <Text style={styles.roleLabel}>👤 Requester: {item.requesterName}</Text>
-            </View>
+            <Text style={styles.roleLabel}>👤 Requester: {item.requesterName}</Text>
           )}
         </View>
 
@@ -220,7 +354,7 @@ const MyTasksScreen = ({ navigation }) => {
 
         {/* Action Buttons */}
         {renderActionButtons(item, isRequester)}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -240,31 +374,19 @@ const MyTasksScreen = ({ navigation }) => {
       {/* Tab Toggle */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'requester' && styles.activeTab
-          ]}
+          style={[styles.tab, activeTab === 'requester' && styles.activeTab]}
           onPress={() => setActiveTab('requester')}
         >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'requester' && styles.activeTabText
-          ]}>
+          <Text style={[styles.tabText, activeTab === 'requester' && styles.activeTabText]}>
             Requester ✅
           </Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'expert' && styles.activeTab
-          ]}
+          style={[styles.tab, activeTab === 'expert' && styles.activeTab]}
           onPress={() => setActiveTab('expert')}
         >
-          <Text style={[
-            styles.tabText,
-            activeTab === 'expert' && styles.activeTabText
-          ]}>
+          <Text style={[styles.tabText, activeTab === 'expert' && styles.activeTabText]}>
             Expert 🎓
           </Text>
         </TouchableOpacity>
@@ -275,6 +397,7 @@ const MyTasksScreen = ({ navigation }) => {
         <Text style={styles.taskCount}>
           {currentTasks.length} task{currentTasks.length !== 1 ? 's' : ''} found
         </Text>
+        <Text style={styles.instructionText}>💡 Tap any card for details, tap buttons for actions!</Text>
       </View>
 
       {/* Task List */}
@@ -284,18 +407,6 @@ const MyTasksScreen = ({ navigation }) => {
         renderItem={renderTaskCard}
         contentContainerStyle={styles.taskList}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyTitle}>No tasks found</Text>
-            <Text style={styles.emptyText}>
-              {activeTab === 'requester' 
-                ? 'You haven\'t posted any tasks yet'
-                : 'You haven\'t accepted any tasks yet'
-              }
-            </Text>
-          </View>
-        }
       />
     </SafeAreaView>
   );
@@ -318,7 +429,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     fontSize: 16,
-    color: '#666',
+    color: '#2e7d32',
     fontWeight: '500',
   },
   headerTitle: {
@@ -372,22 +483,28 @@ const styles = StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
   },
+  instructionText: {
+    fontSize: 12,
+    color: '#2e7d32',
+    marginTop: 4,
+    fontWeight: '500',
+  },
   taskList: {
     paddingBottom: 16,
   },
   taskCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
+    backgroundColor: '#ffffff',
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -397,14 +514,14 @@ const styles = StyleSheet.create({
   },
   taskTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
+    fontWeight: '700',
+    color: '#222',
     flex: 1,
     marginRight: 8,
   },
   taskPrice: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#2e7d32',
   },
   dueDateContainer: {
@@ -431,6 +548,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
+    marginLeft: 'auto',
   },
   overdue: {
     color: '#f44336',
@@ -457,10 +575,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 8,
-    minWidth: 100,
+    minWidth: 120,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
   },
   actionBtnText: {
     fontSize: 12,
@@ -468,49 +591,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#fff',
   },
-  approveBtn: {
-    backgroundColor: '#4caf50',
-  },
-  disputeBtn: {
-    backgroundColor: '#ff5722',
-  },
-  cancelBtn: {
-    backgroundColor: '#f44336',
-  },
-  editBtn: {
-    backgroundColor: '#ff9800',
-  },
-  uploadBtn: {
-    backgroundColor: '#4caf50',
-  },
-  awaitingBtn: {
-    backgroundColor: '#2196f3',
-  },
-  paymentBtn: {
-    backgroundColor: '#9c27b0',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  approveBtn: { backgroundColor: '#4caf50' },
+  disputeBtn: { backgroundColor: '#ff5722' },
+  cancelBtn: { backgroundColor: '#f44336' },
+  editBtn: { backgroundColor: '#ff9800' },
+  uploadBtn: { backgroundColor: '#2e7d32' },
+  awaitingBtn: { backgroundColor: '#2196f3' },
+  paymentBtn: { backgroundColor: '#9c27b0' },
 });
 
 export default MyTasksScreen;

@@ -43,12 +43,10 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
   const { budget, serviceFee, total } = calculateTotal();
 
   const selectPaymentMethod = (method) => {
-    // If clicking the same method, deselect it
     if (selectedPayment?.id === method.id) {
       setSelectedPayment(null);
       updateFormData('paymentMethod', null);
     } else {
-      // Select the new method
       setSelectedPayment(method);
       updateFormData('paymentMethod', method);
     }
@@ -59,7 +57,7 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
       Alert.alert('Payment Required', 'Please select a payment method');
       return;
     }
-    onNext(); // This will call handleSubmit in PostScreen
+    onNext();
   };
 
   return (
@@ -101,7 +99,6 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
             <Text style={styles.summaryLabel}>AI Level:</Text>
             <Text style={styles.summaryValue}>{formatAILevel()}</Text>
           </View>
-<<<<<<< HEAD
         </View>
 
         {/* Description */}
@@ -134,23 +131,6 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           </View>
         </View>
 
-=======
-        </View>
-
-        {/* Description */}
-        <View style={styles.descriptionCard}>
-          <Text style={styles.cardTitle}>🖊️ Description</Text>
-          <Text style={styles.descriptionText}>{formData.description}</Text>
-          
-          {formData.specialInstructions && (
-            <>
-              <Text style={styles.instructionsLabel}>Special Instructions:</Text>
-              <Text style={styles.instructionsText}>{formData.specialInstructions}</Text>
-            </>
-          )}
-        </View>
-
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
         {/* Payment Method */}
         <View style={styles.paymentCard}>
           <Text style={styles.cardTitle}>💳 Payment Method</Text>
@@ -202,11 +182,10 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           </Text>
         </View>
 
-        {/* Add some bottom padding for the fixed button */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Fixed Confirm Button */}
+      {/* Confirm Button */}
       <View style={styles.fixedButtonContainer}>
         <TouchableOpacity 
           style={[
@@ -226,9 +205,7 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -237,30 +214,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-    textAlign: 'center',
-  },
-  headerRight: {
-    flex: 1,
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 20,
-    paddingBottom: 100, // Extra space for the fixed button
-  },
-  bottomSpacer: {
-    height: 20,
-  },
+  backButton: { fontSize: 16, color: '#666', fontWeight: '500' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#111' },
+  headerRight: { flex: 1 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingTop: 20, paddingBottom: 100 },
+  bottomSpacer: { height: 20 },
   summaryCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -268,37 +227,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
-=======
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 4,
-  },
-  paymentSubtitle: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 12,
-    fontStyle: 'italic',
-  },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 4 },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
-  },
+  summaryLabel: { fontSize: 14, color: '#666', flex: 1 },
   summaryValue: {
     fontSize: 14,
     color: '#111',
@@ -313,34 +254,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
-=======
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
-  descriptionText: {
-    fontSize: 14,
-    color: '#333',
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  instructionsLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  instructionsText: {
-    fontSize: 14,
-    color: '#333',
-    fontStyle: 'italic',
-  },
-<<<<<<< HEAD
+  descriptionText: { fontSize: 14, color: '#333', lineHeight: 20, marginBottom: 8 },
+  instructionsLabel: { fontSize: 14, fontWeight: '600', color: '#666', marginTop: 8, marginBottom: 4 },
+  instructionsText: { fontSize: 14, color: '#333', fontStyle: 'italic' },
   detailsCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -354,21 +276,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  detailSection: {
-    marginBottom: 12,
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  detailValue: {
-    fontSize: 15,
-    color: '#111',
-    fontWeight: '500',
-  },
-=======
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
+  detailSection: { marginBottom: 12 },
+  detailLabel: { fontSize: 14, color: '#666', marginBottom: 4 },
+  detailValue: { fontSize: 15, color: '#111', fontWeight: '500' },
   paymentCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -376,15 +286,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
-=======
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
+  paymentSubtitle: { fontSize: 12, color: '#666', marginBottom: 12, fontStyle: 'italic' },
   paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -398,32 +306,9 @@ const styles = StyleSheet.create({
     borderColor: '#2e7d32',
     backgroundColor: '#f8fff8',
   },
-  paymentIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  paymentName: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-<<<<<<< HEAD
-=======
-  selectedPaymentDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#2e7d32',
-    backgroundColor: '#f8fff8',
-  },
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
-  checkmark: {
-    fontSize: 18,
-    color: '#2e7d32',
-    fontWeight: 'bold',
-  },
+  paymentIcon: { fontSize: 20, marginRight: 12 },
+  paymentName: { fontSize: 16, color: '#333', flex: 1 },
+  checkmark: { fontSize: 18, color: '#2e7d32', fontWeight: 'bold' },
   costCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -431,29 +316,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
-=======
->>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
-  costRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  costLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  costValue: {
-    fontSize: 14,
-    color: '#111',
-    fontWeight: '500',
-  },
+  costRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  costLabel: { fontSize: 14, color: '#666' },
+  costValue: { fontSize: 14, color: '#111', fontWeight: '500' },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -462,16 +333,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
   },
-  totalLabel: {
-    fontSize: 16,
-    color: '#111',
-    fontWeight: '700',
-  },
-  totalValue: {
-    fontSize: 16,
-    color: '#2e7d32',
-    fontWeight: '700',
-  },
+  totalLabel: { fontSize: 16, color: '#111', fontWeight: '700' },
+  totalValue: { fontSize: 16, color: '#2e7d32', fontWeight: '700' },
   escrowNotice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -480,15 +343,8 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
   },
-  escrowIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  escrowText: {
-    fontSize: 12,
-    color: '#2e7d32',
-    flex: 1,
-  },
+  escrowIcon: { fontSize: 20, marginRight: 8 },
+  escrowText: { fontSize: 12, color: '#2e7d32', flex: 1 },
   fixedButtonContainer: {
     position: 'absolute',
     bottom: 0,
@@ -505,9 +361,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7d32',
     paddingVertical: 16,
     borderRadius: 12,
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
   },
   disabledButton: {
     backgroundColor: '#ccc',
