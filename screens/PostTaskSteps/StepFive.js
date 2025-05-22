@@ -4,37 +4,18 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
   ScrollView,
-  Modal,
-  Pressable,
-  FlatList,
 } from 'react-native';
 
-const paymentMethods = [
-  {
-    id: '1',
-    type: 'credit',
-    brand: 'Visa',
-    last4: '4242',
-    icon: '💳',
-  },
-  {
-    id: '2',
-    type: 'credit',
-    brand: 'Mastercard',
-    last4: '8888',
-    icon: '💳',
-  },
-  {
-    id: 'new',
-    type: 'new',
-    brand: 'Add New Card',
-    icon: '➕',
-  },
-];
-
 const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => {
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
+
+  const paymentMethods = [
+    { id: '1', name: 'Visa •••• 4242', icon: '💳' },
+    { id: '2', name: 'Mastercard •••• 8888', icon: '💳' },
+    { id: '3', name: 'PayPal', icon: '🅿️' },
+  ];
 
   const formatAILevel = () => {
     switch (formData.aiLevel) {
@@ -49,17 +30,6 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
     }
   };
 
-  const formatFiles = () => {
-    const allFiles = [...formData.images, ...formData.files];
-    if (allFiles.length === 0) return 'None';
-    return allFiles.map(file => file.name || 'Uploaded file').join(', ');
-  };
-
-  const selectPaymentMethod = (method) => {
-    updateFormData('paymentMethod', method);
-    setShowPaymentModal(false);
-  };
-
   const calculateTotal = () => {
     const budget = parseFloat(formData.budget) || 0;
     const serviceFee = budget * 0.05; // 5% service fee
@@ -72,6 +42,26 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
 
   const { budget, serviceFee, total } = calculateTotal();
 
+  const selectPaymentMethod = (method) => {
+    // If clicking the same method, deselect it
+    if (selectedPayment?.id === method.id) {
+      setSelectedPayment(null);
+      updateFormData('paymentMethod', null);
+    } else {
+      // Select the new method
+      setSelectedPayment(method);
+      updateFormData('paymentMethod', method);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (!selectedPayment) {
+      Alert.alert('Payment Required', 'Please select a payment method');
+      return;
+    }
+    onNext(); // This will call handleSubmit in PostScreen
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -83,35 +73,47 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
         <View style={styles.headerRight} />
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Task Summary */}
         <View style={styles.summaryCard}>
           <Text style={styles.cardTitle}>📋 Task Summary</Text>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>📚 Subject:</Text>
+            <Text style={styles.summaryLabel}>Subject:</Text>
             <Text style={styles.summaryValue}>{formData.subject}</Text>
           </View>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>📌 Title:</Text>
+            <Text style={styles.summaryLabel}>Title:</Text>
             <Text style={styles.summaryValue}>{formData.title}</Text>
           </View>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>⏰ Due:</Text>
+            <Text style={styles.summaryLabel}>Due:</Text>
             <Text style={styles.summaryValue}>{formData.deadline}</Text>
           </View>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>🤖 AI Level:</Text>
+            <Text style={styles.summaryLabel}>AI Level:</Text>
             <Text style={styles.summaryValue}>{formatAILevel()}</Text>
           </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.descriptionCard}>
+          <Text style={styles.cardTitle}>🖊️ Description</Text>
+          <Text style={styles.descriptionText}>{formData.description}</Text>
           
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>💰 Budget:</Text>
-            <Text style={[styles.summaryValue, styles.budgetText]}>${formData.budget}</Text>
-          </View>
+          {formData.specialInstructions && (
+            <>
+              <Text style={styles.instructionsLabel}>Special Instructions:</Text>
+              <Text style={styles.instructionsText}>{formData.specialInstructions}</Text>
+            </>
+          )}
         </View>
 
         {/* Additional Details */}
@@ -120,15 +122,8 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           
           <View style={styles.detailSection}>
             <Text style={styles.detailLabel}>📎 Files:</Text>
-            <Text style={styles.detailValue}>{formatFiles()}</Text>
+            <Text style={styles.detailValue}>None</Text>
           </View>
-          
-          {formData.specialInstructions && (
-            <View style={styles.detailSection}>
-              <Text style={styles.detailLabel}>📑 Special Instructions:</Text>
-              <Text style={styles.detailValue}>{formData.specialInstructions}</Text>
-            </View>
-          )}
           
           <View style={styles.detailSection}>
             <Text style={styles.detailLabel}>🎯 Matching:</Text>
@@ -138,41 +133,27 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           </View>
         </View>
 
-        {/* Description */}
-        <View style={styles.descriptionCard}>
-          <Text style={styles.cardTitle}>🖊️ Task Description</Text>
-          <Text style={styles.descriptionText}>{formData.description}</Text>
-        </View>
-
         {/* Payment Method */}
         <View style={styles.paymentCard}>
           <Text style={styles.cardTitle}>💳 Payment Method</Text>
+          <Text style={styles.paymentSubtitle}>Select one (tap to change)</Text>
           
-          {formData.paymentMethod ? (
-            <View style={styles.selectedPayment}>
-              <Text style={styles.paymentIcon}>{formData.paymentMethod.icon}</Text>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentBrand}>{formData.paymentMethod.brand}</Text>
-                {formData.paymentMethod.last4 && (
-                  <Text style={styles.paymentLast4}>•••• {formData.paymentMethod.last4}</Text>
-                )}
-              </View>
-              <TouchableOpacity
-                style={styles.changeButton}
-                onPress={() => setShowPaymentModal(true)}
-              >
-                <Text style={styles.changeButtonText}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
+          {paymentMethods.map((method) => (
             <TouchableOpacity
-              style={styles.addPaymentButton}
-              onPress={() => setShowPaymentModal(true)}
+              key={method.id}
+              style={[
+                styles.paymentOption,
+                selectedPayment?.id === method.id && styles.selectedPayment
+              ]}
+              onPress={() => selectPaymentMethod(method)}
             >
-              <Text style={styles.addPaymentIcon}>➕</Text>
-              <Text style={styles.addPaymentText}>Add or select payment method</Text>
+              <Text style={styles.paymentIcon}>{method.icon}</Text>
+              <Text style={styles.paymentName}>{method.name}</Text>
+              {selectedPayment?.id === method.id && (
+                <Text style={styles.checkmark}>✓</Text>
+              )}
             </TouchableOpacity>
-          )}
+          ))}
         </View>
 
         {/* Cost Breakdown */}
@@ -196,64 +177,32 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
         </View>
 
         {/* Escrow Notice */}
-        <View style={styles.escrowCard}>
+        <View style={styles.escrowNotice}>
           <Text style={styles.escrowIcon}>🔒</Text>
-          <Text style={styles.escrowTitle}>Secure Escrow Protection</Text>
           <Text style={styles.escrowText}>
-            Your funds are held securely and only released when the assignment is completed to your satisfaction.
+            Your funds are held securely and only released when the task is completed
           </Text>
         </View>
 
-        <View style={styles.spacer} />
+        {/* Add some bottom padding for the fixed button */}
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Confirm Button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.confirmButton} onPress={onNext}>
+      {/* Fixed Confirm Button */}
+      <View style={styles.fixedButtonContainer}>
+        <TouchableOpacity 
+          style={[
+            styles.confirmButton,
+            !selectedPayment && styles.disabledButton
+          ]} 
+          onPress={handleConfirm}
+          disabled={!selectedPayment}
+        >
           <Text style={styles.confirmButtonText}>
-            Confirm & Post (${total.toFixed(2)})
+            Confirm & Post Task (${total.toFixed(2)})
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* Payment Method Modal */}
-      <Modal
-        visible={showPaymentModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowPaymentModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowPaymentModal(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Payment Method</Text>
-            
-            <FlatList
-              data={paymentMethods}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.paymentOption}
-                  onPress={() => selectPaymentMethod(item)}
-                >
-                  <Text style={styles.paymentOptionIcon}>{item.icon}</Text>
-                  <View style={styles.paymentOptionInfo}>
-                    <Text style={styles.paymentOptionBrand}>{item.brand}</Text>
-                    {item.last4 && (
-                      <Text style={styles.paymentOptionLast4}>•••• {item.last4}</Text>
-                    )}
-                  </View>
-                  {item.type === 'new' && (
-                    <Text style={styles.newBadge}>NEW</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </Pressable>
-      </Modal>
     </View>
   );
 };
@@ -261,8 +210,6 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
   },
   header: {
     flexDirection: 'row',
@@ -271,7 +218,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
-    backgroundColor: '#f8f9fa',
   },
   headerTitle: {
     fontSize: 18,
@@ -289,58 +235,99 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingTop: 20,
+    paddingBottom: 100, // Extra space for the fixed button
+  },
+  bottomSpacer: {
+    height: 20,
   },
   summaryCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#111',
-    marginBottom: 16,
+    marginBottom: 4,
+  },
+  paymentSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 12,
+    fontStyle: 'italic',
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   summaryLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#666',
     flex: 1,
   },
   summaryValue: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#111',
-    fontWeight: '600',
+    fontWeight: '500',
     flex: 2,
     textAlign: 'right',
   },
-  budgetText: {
-    color: '#2e7d32',
-    fontSize: 16,
-    fontWeight: '700',
+  descriptionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  instructionsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  instructionsText: {
+    fontSize: 14,
+    color: '#333',
+    fontStyle: 'italic',
   },
   detailsCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   detailSection: {
     marginBottom: 12,
@@ -355,172 +342,119 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '500',
   },
-  descriptionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  descriptionText: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-  },
   paymentCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
-  selectedPayment: {
+  paymentOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fff8',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#2e7d32',
-  },
-  paymentIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  paymentInfo: {
-    flex: 1,
-  },
-  paymentBrand: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-  },
-  paymentLast4: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  changeButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    padding: 12,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2e7d32',
-  },
-  changeButtonText: {
-    color: '#2e7d32',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addPaymentButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
     borderWidth: 2,
     borderColor: '#e5e5e5',
-    borderStyle: 'dashed',
+    marginBottom: 8,
   },
-  addPaymentIcon: {
-    fontSize: 24,
+  selectedPayment: {
+    borderColor: '#2e7d32',
+    backgroundColor: '#f8fff8',
+  },
+  paymentIcon: {
+    fontSize: 20,
     marginRight: 12,
   },
-  addPaymentText: {
+  paymentName: {
     fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#2e7d32',
+    fontWeight: 'bold',
   },
   costCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5e5',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
   },
   costLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#666',
   },
   costValue: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#111',
     fontWeight: '500',
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 8,
-    paddingTop: 12,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
   },
   totalLabel: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#111',
     fontWeight: '700',
   },
   totalValue: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#2e7d32',
     fontWeight: '700',
   },
-  escrowCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 3,
+  escrowNotice: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f8fff8',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
   },
   escrowIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  escrowTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 20,
+    marginRight: 8,
   },
   escrowText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
+    fontSize: 12,
+    color: '#2e7d32',
+    flex: 1,
   },
-  spacer: {
-    height: 20,
-  },
-  buttonContainer: {
-    paddingBottom: 34,
-    paddingTop: 16,
-    backgroundColor: '#f8f9fa',
+  fixedButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#f4f5f9',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
   },
   confirmButton: {
     backgroundColor: '#2e7d32',
@@ -532,67 +466,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  disabledButton: {
+    backgroundColor: '#ccc',
+  },
   confirmButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 34,
-    maxHeight: '50%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#111',
-  },
-  paymentOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  paymentOptionIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  paymentOptionInfo: {
-    flex: 1,
-  },
-  paymentOptionBrand: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-  },
-  paymentOptionLast4: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  newBadge: {
-    backgroundColor: '#2e7d32',
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
   },
 });
 
