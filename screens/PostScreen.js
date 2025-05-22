@@ -136,7 +136,7 @@ const PostScreen = ({ navigation }) => {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
-    } else {
+    } else if (navigation) {
       // Show confirmation dialog when trying to exit from first step
       Alert.alert(
         'Exit Task Creation',
@@ -149,7 +149,7 @@ const PostScreen = ({ navigation }) => {
           {
             text: 'Exit',
             style: 'destructive',
-            onPress: () => navigation?.goBack(),
+            onPress: () => navigation.goBack(),
           },
         ]
       );
@@ -174,8 +174,10 @@ const PostScreen = ({ navigation }) => {
             text: 'View My Tasks',
             onPress: () => {
               resetForm();
-              // Navigate to tasks screen
-              navigation?.navigate('MyTasks');
+              // Navigate to MyTasks tab
+              if (navigation) {
+                navigation.navigate('MyTasks');
+              }
             }
           },
           {
