@@ -101,6 +101,7 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
             <Text style={styles.summaryLabel}>AI Level:</Text>
             <Text style={styles.summaryValue}>{formatAILevel()}</Text>
           </View>
+<<<<<<< HEAD
         </View>
 
         {/* Description */}
@@ -133,6 +134,23 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           </View>
         </View>
 
+=======
+        </View>
+
+        {/* Description */}
+        <View style={styles.descriptionCard}>
+          <Text style={styles.cardTitle}>🖊️ Description</Text>
+          <Text style={styles.descriptionText}>{formData.description}</Text>
+          
+          {formData.specialInstructions && (
+            <>
+              <Text style={styles.instructionsLabel}>Special Instructions:</Text>
+              <Text style={styles.instructionsText}>{formData.specialInstructions}</Text>
+            </>
+          )}
+        </View>
+
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
         {/* Payment Method */}
         <View style={styles.paymentCard}>
           <Text style={styles.cardTitle}>💳 Payment Method</Text>
@@ -250,11 +268,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
+<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
+=======
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
   cardTitle: {
     fontSize: 16,
@@ -292,11 +313,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
+<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
+=======
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
   descriptionText: {
     fontSize: 14,
@@ -316,6 +340,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontStyle: 'italic',
   },
+<<<<<<< HEAD
   detailsCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -342,6 +367,8 @@ const styles = StyleSheet.create({
     color: '#111',
     fontWeight: '500',
   },
+=======
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   paymentCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -349,11 +376,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
+<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
+=======
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
   paymentOption: {
     flexDirection: 'row',
@@ -377,6 +407,18 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
+<<<<<<< HEAD
+=======
+  selectedPaymentDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#2e7d32',
+    backgroundColor: '#f8fff8',
+  },
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   checkmark: {
     fontSize: 18,
     color: '#2e7d32',
@@ -389,11 +431,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e5e5',
+<<<<<<< HEAD
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 8,
     elevation: 2,
+=======
+>>>>>>> 75c1fa6 (🔁 Updated all PostTaskSteps and PostScreen.js to final 5-step flow)
   },
   costRow: {
     flexDirection: 'row',
@@ -460,11 +505,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#2e7d32',
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: '#2e7d32',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   disabledButton: {
     backgroundColor: '#ccc',

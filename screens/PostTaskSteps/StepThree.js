@@ -32,7 +32,6 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
     updateFormData('aiLevel', level);
   };
 
-  // Custom slider alternative using buttons
   const percentageOptions = [10, 20, 30, 40, 50, 60, 70];
 
   const selectPercentage = (percentage) => {
@@ -54,7 +53,6 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
       <View style={styles.form}>
         <Text style={styles.label}>🤖 Choose AI Level</Text>
 
-        {/* AI Options */}
         {aiOptions.map((option) => (
           <TouchableOpacity
             key={option.id}
@@ -86,12 +84,11 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
           </TouchableOpacity>
         ))}
 
-        {/* AI Percentage Selection - Replaced Slider with buttons */}
         {formData.aiLevel === 'partial' && (
           <View style={styles.percentageContainer}>
             <Text style={styles.percentageLabel}>AI Assistance Level</Text>
             <Text style={styles.currentPercentage}>{formData.aiPercentage}%</Text>
-            
+
             <View style={styles.percentageButtons}>
               {percentageOptions.map((percentage) => (
                 <TouchableOpacity
@@ -111,7 +108,7 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
                 </TouchableOpacity>
               ))}
             </View>
-            
+
             <Text style={styles.percentageDescription}>
               Higher percentage means more AI involvement in solving your task
             </Text>
@@ -130,9 +127,7 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -147,14 +142,8 @@ const styles = StyleSheet.create({
     color: '#111',
     textAlign: 'center',
   },
-  headerRight: {
-    flex: 1,
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
+  headerRight: { flex: 1 },
+  backButton: { fontSize: 16, color: '#666', fontWeight: '500' },
   form: {
     flex: 1,
     paddingTop: 32,
@@ -186,9 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  radioContainer: {
-    marginRight: 12,
-  },
+  radioContainer: { marginRight: 12 },
   radioOuter: {
     width: 20,
     height: 20,
@@ -198,9 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  radioSelected: {
-    borderColor: '#2e7d32',
-  },
+  radioSelected: { borderColor: '#2e7d32' },
   radioInner: {
     width: 10,
     height: 10,
@@ -211,9 +196,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginRight: 12,
   },
-  optionText: {
-    flex: 1,
-  },
+  optionText: { flex: 1 },
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
