@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { 
   Text, 
   View, 
@@ -15,9 +16,11 @@ import {
 } from 'react-native';
 import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
+import TaskDetailsScreen from './screens/TaskDetailsScreen';
 import { TasksAPI } from './api/tasks';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
 // 🎯 Enhanced MyTasksScreen with API Integration
 const MyTasksScreen = ({ navigation }) => {
@@ -39,6 +42,17 @@ const MyTasksScreen = ({ navigation }) => {
     loadTasks();
     loadStats();
   }, [activeTab]);
+
+  // Focus listener to refresh data when returning from details
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('🔄 MyTasks screen focused - refreshing data');
+      loadTasks(false);
+      loadStats();
+    });
+
+    return unsubscribe;
+  }, [navigation, activeTab]);
 
   // 📡 Load tasks from API
   const loadTasks = async (showLoader = true) => {
@@ -108,6 +122,19 @@ const MyTasksScreen = ({ navigation }) => {
   const showCustomModal = (title, message, buttons = []) => {
     setModalData({ title, message, buttons });
     setShowModal(true);
+  };
+
+  // 🎯 Enhanced Task Card Navigation with Details
+  const handleTaskPress = (task) => {
+    // Add tap indicator
+    console.log(`📱 Task tapped: ${task.title}`);
+    
+    // Navigate to TaskDetailsScreen
+    navigation.navigate('TaskDetails', {
+      taskId: task.id,
+      role: activeTab,
+      task: task
+    });
   };
 
   // 🔥 Enhanced Action Handler with API integration
@@ -397,13 +424,7 @@ const MyTasksScreen = ({ navigation }) => {
     return (
       <TouchableOpacity 
         style={styles.taskCard}
-        onPress={() => {
-          showCustomModal(
-            '📋 Task Details',
-            `Title: ${item.title}\nPrice: ${item.price}\nStatus: ${statusInfo.text}\nDue: ${item.dueDate}\n${isRequester ? `Expert: ${item.expertName || 'None assigned'}` : `Requester: ${item.requesterName}`}\n\nUrgency: ${item.urgency || 'Medium'}\nEstimated Hours: ${item.estimatedHours || 'N/A'}`,
-            [{ text: 'Close', onPress: () => setShowModal(false) }]
-          );
-        }}
+        onPress={() => handleTaskPress(item)}
         activeOpacity={0.7}
       >
         {/* Task Header */}
@@ -471,6 +492,11 @@ const MyTasksScreen = ({ navigation }) => {
               {statusInfo.text}
             </Text>
           </View>
+        </View>
+
+        {/* Tap Indicator */}
+        <View style={styles.tapIndicator}>
+          <Text style={styles.tapIndicatorText}>👆 Tap for full details</Text>
         </View>
 
         {/* Action Buttons */}
@@ -639,6 +665,16 @@ const MyTasksScreen = ({ navigation }) => {
   );
 };
 
+// Create MyTasks Stack Navigator
+const MyTasksStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MyTasksList" component={MyTasksScreen} />
+      <Stack.Screen name="TaskDetails" component={TaskDetailsScreen} />
+    </Stack.Navigator>
+  );
+};
+
 // Placeholder Screen
 const PlaceholderScreen = ({ name }) => (
   <View style={styles.placeholder}>
@@ -653,7 +689,7 @@ export default function App() {
       <Tab.Navigator screenOptions={{ headerShown: false }}>
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Post" component={PostScreen} />
-        <Tab.Screen name="MyTasks" component={MyTasksScreen} />
+        <Tab.Screen name="MyTasks" component={MyTasksStack} />
         <Tab.Screen name="Notifications" children={() => <PlaceholderScreen name="Notifications" />} />
         <Tab.Screen name="Profile" children={() => <PlaceholderScreen name="Profile" />} />
       </Tab.Navigator>
@@ -927,6 +963,21 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     marginBottom: 16,
+  },
+  tapIndicator: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  tapIndicatorText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   statusBadge: {
     alignSelf: 'flex-start',
