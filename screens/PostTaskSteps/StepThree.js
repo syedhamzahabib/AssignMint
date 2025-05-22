@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Slider,
 } from 'react-native';
 
 const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) => {
@@ -33,6 +32,13 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
     updateFormData('aiLevel', level);
   };
 
+  // Custom slider alternative using buttons
+  const percentageOptions = [10, 20, 30, 40, 50, 60, 70];
+
+  const selectPercentage = (percentage) => {
+    updateFormData('aiPercentage', percentage);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -40,7 +46,7 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
         <TouchableOpacity onPress={onBack}>
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Post Task (3/4)</Text>
+        <Text style={styles.headerTitle}>Post Task (3/5)</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -80,29 +86,33 @@ const StepThree = ({ formData, updateFormData, onNext, onBack, currentStep }) =>
           </TouchableOpacity>
         ))}
 
-        {/* AI Percentage Slider */}
+        {/* AI Percentage Selection - Replaced Slider with buttons */}
         {formData.aiLevel === 'partial' && (
-          <View style={styles.sliderContainer}>
-            <Text style={styles.sliderLabel}>AI Assistance Level</Text>
-            <View style={styles.sliderWrapper}>
-              <Text style={styles.sliderValue}>{formData.aiPercentage}%</Text>
-              <Slider
-                style={styles.slider}
-                minimumValue={10}
-                maximumValue={70}
-                step={5}
-                value={formData.aiPercentage}
-                onValueChange={(value) => updateFormData('aiPercentage', value)}
-                minimumTrackTintColor="#2e7d32"
-                maximumTrackTintColor="#e5e5e5"
-                thumbStyle={styles.sliderThumb}
-              />
-              <View style={styles.sliderLabels}>
-                <Text style={styles.sliderMin}>10%</Text>
-                <Text style={styles.sliderMax}>70%</Text>
-              </View>
+          <View style={styles.percentageContainer}>
+            <Text style={styles.percentageLabel}>AI Assistance Level</Text>
+            <Text style={styles.currentPercentage}>{formData.aiPercentage}%</Text>
+            
+            <View style={styles.percentageButtons}>
+              {percentageOptions.map((percentage) => (
+                <TouchableOpacity
+                  key={percentage}
+                  style={[
+                    styles.percentageButton,
+                    formData.aiPercentage === percentage && styles.selectedPercentage
+                  ]}
+                  onPress={() => selectPercentage(percentage)}
+                >
+                  <Text style={[
+                    styles.percentageButtonText,
+                    formData.aiPercentage === percentage && styles.selectedPercentageText
+                  ]}>
+                    {percentage}%
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-            <Text style={styles.sliderDescription}>
+            
+            <Text style={styles.percentageDescription}>
               Higher percentage means more AI involvement in solving your task
             </Text>
           </View>
@@ -214,7 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  sliderContainer: {
+  percentageContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
@@ -227,46 +237,50 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  sliderLabel: {
+  percentageLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  sliderWrapper: {
-    marginBottom: 12,
-  },
-  sliderValue: {
+  currentPercentage: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2e7d32',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderThumb: {
-    backgroundColor: '#2e7d32',
-    width: 20,
-    height: 20,
-  },
-  sliderLabels: {
+  percentageButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: -8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
-  sliderMin: {
-    fontSize: 12,
+  percentageButton: {
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+    minWidth: 50,
+  },
+  selectedPercentage: {
+    backgroundColor: '#f8fff8',
+    borderColor: '#2e7d32',
+  },
+  percentageButtonText: {
+    fontSize: 14,
     color: '#666',
+    textAlign: 'center',
+    fontWeight: '600',
   },
-  sliderMax: {
-    fontSize: 12,
-    color: '#666',
+  selectedPercentageText: {
+    color: '#2e7d32',
   },
-  sliderDescription: {
+  percentageDescription: {
     fontSize: 13,
     color: '#666',
     textAlign: 'center',
