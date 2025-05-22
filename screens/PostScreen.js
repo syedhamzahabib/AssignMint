@@ -1,212 +1,177 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
   Alert,
 } from 'react-native';
+import StepOne from './PostTaskSteps/StepOne';
+import StepTwo from './PostTaskSteps/StepTwo';
+import StepThree from './PostTaskSteps/StepThree';
+import StepFour from './PostTaskSteps/StepFour';
+import StepFive from './PostTaskSteps/StepFive';
 
 const PostScreen = () => {
-  const [step, setStep] = useState(1);
-
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    title: '',
     subject: '',
-    price: '',
-    deadline: '',
+    title: '',
     description: '',
+    images: [],
+    files: [],
+    aiLevel: 'none', // 'none', 'partial', 'full'
+    aiPercentage: 40,
+    deadline: null,
+    specialInstructions: '',
+    matchingType: 'auto', // 'auto' or 'manual'
+    budget: '',
+    paymentMethod: null,
   });
 
-  const handleInputChange = (field, value) => {
+  const updateFormData = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
   };
 
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        if (!formData.subject.trim()) {
+          Alert.alert('Required Field', 'Please select a subject');
+          return false;
+        }
+        if (!formData.title.trim()) {
+          Alert.alert('Required Field', 'Please enter a task title');
+          return false;
+        }
+        return true;
+      
+      case 2:
+        if (!formData.description.trim()) {
+          Alert.alert('Required Field', 'Please enter a task description');
+          return false;
+        }
+        return true;
+      
+      case 3:
+        // AI level is always valid (has default)
+        return true;
+      
+      case 4:
+        if (!formData.deadline) {
+          Alert.alert('Required Field', 'Please select a deadline');
+          return false;
+        }
+        if (!formData.budget.trim()) {
+          Alert.alert('Required Field', 'Please enter your budget');
+          return false;
+        }
+        return true;
+      
+      case 5:
+        if (!formData.paymentMethod) {
+          Alert.alert('Required Field', 'Please add a payment method');
+          return false;
+        }
+        return true;
+      
+      default:
+        return true;
+    }
+  };
+
   const handleNext = () => {
-    if (step === 1) {
-      if (!formData.subject.trim()) {
-        Alert.alert('Error', 'Please select a subject');
-        return;
+    if (validateStep(currentStep)) {
+      if (currentStep < 5) {
+        setCurrentStep(prev => prev + 1);
+      } else {
+        handleSubmit();
       }
-      if (!formData.title.trim()) {
-        Alert.alert('Error', 'Please enter a task title');
-        return;
-      }
-    }
-
-    if (step === 2) {
-      if (!formData.description.trim()) {
-        Alert.alert('Error', 'Please enter a description');
-        return;
-      }
-    }
-
-    if (step === 3) {
-      if (!formData.price.trim()) {
-        Alert.alert('Error', 'Please enter a price');
-        return;
-      }
-    }
-
-    if (step < 5) {
-      setStep(prev => prev + 1);
-    } else {
-      Alert.alert('Success', 'Task posted successfully!');
-      setFormData({
-        title: '',
-        subject: '',
-        price: '',
-        deadline: '',
-        description: '',
-      });
-      setStep(1);
     }
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(prev => prev - 1);
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
   };
 
-  const renderStep = () => {
-    switch (step) {
+  const handleSubmit = () => {
+    Alert.alert(
+      'Task Posted Successfully! 🎉',
+      'Your task has been posted and will be visible to tutors shortly.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Reset form
+            setFormData({
+              subject: '',
+              title: '',
+              description: '',
+              images: [],
+              files: [],
+              aiLevel: 'none',
+              aiPercentage: 40,
+              deadline: null,
+              specialInstructions: '',
+              matchingType: 'auto',
+              budget: '',
+              paymentMethod: null,
+            });
+            setCurrentStep(1);
+          }
+        }
+      ]
+    );
+  };
+
+  const renderCurrentStep = () => {
+    const stepProps = {
+      formData,
+      updateFormData,
+      onNext: handleNext,
+      onBack: handleBack,
+      currentStep,
+    };
+
+    switch (currentStep) {
       case 1:
-        return (
-          <>
-            <Text style={styles.header}>📌 Post Task (1/4)</Text>
-
-            <Text style={styles.label}>📚 Subject</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Select Subject"
-              value={formData.subject}
-              onChangeText={(text) => handleInputChange('subject', text)}
-            />
-
-            <Text style={styles.label}>📌 Task Title</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter a short clear title"
-              value={formData.title}
-              onChangeText={(text) => handleInputChange('title', text)}
-            />
-          </>
-        );
+        return <StepOne {...stepProps} />;
       case 2:
-        return (
-          <>
-            <Text style={styles.header}>📄 Post Task (2/4)</Text>
-
-            <Text style={styles.label}>🖊️ Describe Your Task</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Type or paste description"
-              multiline
-              numberOfLines={4}
-              value={formData.description}
-              onChangeText={(text) => handleInputChange('description', text)}
-            />
-          </>
-        );
+        return <StepTwo {...stepProps} />;
       case 3:
-        return (
-          <>
-            <Text style={styles.header}>💰 Post Task (3/4)</Text>
-
-            <Text style={styles.label}>💸 Price</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter price in USD"
-              keyboardType="numeric"
-              value={formData.price}
-              onChangeText={(text) => handleInputChange('price', text)}
-            />
-          </>
-        );
+        return <StepThree {...stepProps} />;
       case 4:
-        return (
-          <>
-            <Text style={styles.header}>⏰ Post Task (4/4)</Text>
-
-            <Text style={styles.label}>⏰ Deadline</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., May 25, 11:59 PM"
-              value={formData.deadline}
-              onChangeText={(text) => handleInputChange('deadline', text)}
-            />
-          </>
-        );
+        return <StepFour {...stepProps} />;
       case 5:
-        return (
-          <>
-            <Text style={styles.header}>✅ Review Task</Text>
-            <Text>📚 Subject: {formData.subject}</Text>
-            <Text>📌 Title: {formData.title}</Text>
-            <Text>🖊️ Description: {formData.description}</Text>
-            <Text>💰 Price: {formData.price}</Text>
-            <Text>⏰ Deadline: {formData.deadline}</Text>
-          </>
-        );
+        return <StepFive {...stepProps} />;
       default:
-        return null;
+        return <StepOne {...stepProps} />;
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.form}>
-        {renderStep()}
-
-        <View style={styles.buttonRow}>
-          {step > 1 && (
-            <TouchableOpacity style={[styles.button, styles.back]} onPress={handleBack}>
-              <Text style={styles.buttonText}>← Back</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.button} onPress={handleNext}>
-            <Text style={styles.buttonText}>{step === 5 ? 'Submit' : 'Next →'}</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.content}>
+        {renderCurrentStep()}
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f4f5f9', padding: 24 },
-  form: { flex: 1 },
-  header: { fontSize: 20, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  label: { fontSize: 16, marginBottom: 8, color: '#333' },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  container: {
+    flex: 1,
+    backgroundColor: '#f4f5f9',
   },
-  textArea: { height: 120, textAlignVertical: 'top' },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 30,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
-  button: {
-    backgroundColor: '#2e7d32',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  back: {
-    backgroundColor: '#ccc',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });
 
 export default PostScreen;
