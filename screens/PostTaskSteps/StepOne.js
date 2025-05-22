@@ -34,9 +34,9 @@ const StepOne = ({ formData, updateFormData, onNext, currentStep }) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.backButton}>← Back</Text>
+          {/* Empty space for first step */}
         </View>
-        <Text style={styles.headerTitle}>Post Task (1/4)</Text>
+        <Text style={styles.headerTitle}>Post Task (1/5)</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -132,11 +132,6 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     flex: 1,
-  },
-  backButton: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
   },
   form: {
     flex: 1,
