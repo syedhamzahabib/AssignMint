@@ -5,6 +5,7 @@ import {
   SafeAreaView,
   Alert,
 } from 'react-native';
+
 import StepOne from './PostTaskSteps/StepOne';
 import StepTwo from './PostTaskSteps/StepTwo';
 import StepThree from './PostTaskSteps/StepThree';
@@ -19,11 +20,11 @@ const PostScreen = () => {
     description: '',
     images: [],
     files: [],
-    aiLevel: 'none', // 'none', 'partial', 'full'
+    aiLevel: 'none',
     aiPercentage: 40,
     deadline: null,
     specialInstructions: '',
-    matchingType: 'auto', // 'auto' or 'manual'
+    matchingType: 'auto',
     budget: '',
     paymentMethod: null,
   });
@@ -68,11 +69,17 @@ const PostScreen = () => {
           Alert.alert('Required Field', 'Please enter your budget');
           return false;
         }
+        // Validate budget is a valid number
+        const budgetNumber = parseFloat(formData.budget);
+        if (isNaN(budgetNumber) || budgetNumber <= 0) {
+          Alert.alert('Invalid Budget', 'Please enter a valid budget amount');
+          return false;
+        }
         return true;
       
       case 5:
         if (!formData.paymentMethod) {
-          Alert.alert('Required Field', 'Please add a payment method');
+          Alert.alert('Required Field', 'Please select a payment method');
           return false;
         }
         return true;
@@ -98,34 +105,48 @@ const PostScreen = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      subject: '',
+      title: '',
+      description: '',
+      images: [],
+      files: [],
+      aiLevel: 'none',
+      aiPercentage: 40,
+      deadline: null,
+      specialInstructions: '',
+      matchingType: 'auto',
+      budget: '',
+      paymentMethod: null,
+    });
+    setCurrentStep(1);
+  };
+
   const handleSubmit = () => {
-    Alert.alert(
-      'Task Posted Successfully! 🎉',
-      'Your task has been posted and will be visible to tutors shortly.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setFormData({
-              subject: '',
-              title: '',
-              description: '',
-              images: [],
-              files: [],
-              aiLevel: 'none',
-              aiPercentage: 40,
-              deadline: null,
-              specialInstructions: '',
-              matchingType: 'auto',
-              budget: '',
-              paymentMethod: null,
-            });
-            setCurrentStep(1);
+    // Log the complete form data for debugging
+    console.log('Final form submission:', formData);
+    
+    try {
+      // Here you would typically send the data to your backend
+      Alert.alert(
+        'Task Posted Successfully! 🎉',
+        'Your task has been posted and will be visible to tutors shortly.',
+        [
+          {
+            text: 'OK',
+            onPress: resetForm
           }
-        }
-      ]
-    );
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting task:', error);
+      Alert.alert(
+        'Error',
+        'There was an error posting your task. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const renderCurrentStep = () => {
