@@ -10,10 +10,105 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import TaskCard from '../components/TaskCard';
-import { dummyTasks } from '../data/dummyTasks';
 
-// Extended subject categories for better filtering
+// Task Card Component
+const TaskCard = ({ title, subject, price, deadline }) => {
+  const getTagColor = (subject) => {
+    switch (subject.toLowerCase()) {
+      case 'math': return '#3f51b5';
+      case 'coding': return '#00796b';
+      case 'writing': return '#d84315';
+      case 'design': return '#6a1b9a';
+      case 'language': return '#00838f';
+      case 'physics': return '#1976d2';
+      case 'chemistry': return '#f57f17';
+      case 'business': return '#388e3c';
+      default: return '#9e9e9e';
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.row}>
+        <Text style={styles.title}>{title}</Text>
+        <View style={[styles.tag, { backgroundColor: getTagColor(subject) }]}>
+          <Text style={styles.tagText}>{subject}</Text>
+        </View>
+      </View>
+      <Text style={styles.meta}>Deadline: {deadline}</Text>
+      <Text style={styles.price}>{price}</Text>
+    </View>
+  );
+};
+
+// Sample tasks data
+const dummyTasks = [
+  {
+    id: '1',
+    title: 'Solve 10 Calculus Problems',
+    subject: 'Math',
+    price: '$20',
+    deadline: 'May 25, 11:59 PM',
+  },
+  {
+    id: '2',
+    title: 'Fix bugs in Python script',
+    subject: 'Coding',
+    price: '$30',
+    deadline: 'May 22, 10:00 PM',
+  },
+  {
+    id: '3',
+    title: 'Write 500-word essay on Civil War',
+    subject: 'Writing',
+    price: '$15',
+    deadline: 'May 24, 8:00 PM',
+  },
+  {
+    id: '4',
+    title: 'Design a logo for student group',
+    subject: 'Design',
+    price: '$18',
+    deadline: 'May 26, 6:00 PM',
+  },
+  {
+    id: '5',
+    title: 'Translate English to Spanish document',
+    subject: 'Language',
+    price: '$22',
+    deadline: 'May 27, 3:00 PM',
+  },
+  {
+    id: '6',
+    title: 'Build basic website in HTML/CSS',
+    subject: 'Coding',
+    price: '$40',
+    deadline: 'May 28, 9:00 PM',
+  },
+  {
+    id: '7',
+    title: 'Physics homework problems',
+    subject: 'Physics',
+    price: '$25',
+    deadline: 'May 29, 8:00 PM',
+  },
+  {
+    id: '8',
+    title: 'Chemistry lab report',
+    subject: 'Chemistry',
+    price: '$28',
+    deadline: 'May 30, 6:00 PM',
+  },
+  {
+    id: '9',
+    title: 'Business plan review',
+    subject: 'Business',
+    price: '$35',
+    deadline: 'June 1, 10:00 AM',
+  },
+];
+
+// Extended subject categories for filtering
 const SUBJECTS = [
   { id: 'math', label: '📊 Math', value: 'Math' },
   { id: 'coding', label: '💻 Coding', value: 'Coding' },
@@ -34,7 +129,7 @@ const SUBJECTS = [
 const HomeScreen = () => {
   // State management for filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubjects, setSelectedSubjects] = useState([]); // Changed to array for multi-select
+  const [selectedSubjects, setSelectedSubjects] = useState([]); // Multi-select subjects
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
 
@@ -497,6 +592,51 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: 16,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#222',
+    flexShrink: 1,
+  },
+  meta: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 6,
+  },
+  price: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginTop: 8,
+  },
+  tag: {
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  tagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+    textTransform: 'capitalize',
   },
   emptyContainer: {
     alignItems: 'center',

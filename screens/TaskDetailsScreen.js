@@ -13,7 +13,10 @@ import {
 import { TasksAPI } from '../api/tasks';
 
 const TaskDetailsScreen = ({ route, navigation }) => {
-  const { taskId, role, task: initialTask } = route.params;
+  // Safely destructure route params with defaults
+  const params = route?.params || {};
+  const { taskId, role = 'requester', task: initialTask } = params;
+  
   const [task, setTask] = useState(initialTask || null);
   const [loading, setLoading] = useState(!initialTask);
   const [actionLoading, setActionLoading] = useState(false);
@@ -23,7 +26,7 @@ const TaskDetailsScreen = ({ route, navigation }) => {
   const isRequester = role === 'requester';
 
   useEffect(() => {
-    if (!initialTask) {
+    if (!initialTask && taskId) {
       loadTaskDetails();
     }
   }, [taskId, role]);
@@ -62,13 +65,15 @@ const TaskDetailsScreen = ({ route, navigation }) => {
 
   // Handle action buttons
   const handleAction = async (action) => {
+    if (!task) return;
+    
     console.log(`🎬 Action: ${action} for task: ${task.title}`);
     
     switch (action) {
       case 'review':
         showCustomModal(
           '✅ Review & Approve',
-          `Task: "${task.title}"\nExpert: ${task.expertName}\nPrice: ${task.price}\n\nApprove this completed work?\n\nThis will release payment to the expert.`,
+          `Task: "${task.title}"\nExpert: ${task.expertName || 'N/A'}\nPrice: ${task.price}\n\nApprove this completed work?\n\nThis will release payment to the expert.`,
           [
             { text: 'Cancel', style: 'cancel', onPress: () => setShowModal(false) },
             { 
@@ -83,7 +88,7 @@ const TaskDetailsScreen = ({ route, navigation }) => {
       case 'dispute':
         showCustomModal(
           '🚩 File Dispute',
-          `Task: "${task.title}"\nExpert: ${task.expertName}\n\nFile a dispute about the quality of work?\n\n⚠️ This will pause payment and start a review process.\n\nOur team will investigate within 24 hours.`,
+          `Task: "${task.title}"\nExpert: ${task.expertName || 'N/A'}\n\nFile a dispute about the quality of work?\n\n⚠️ This will pause payment and start a review process.\n\nOur team will investigate within 24 hours.`,
           [
             { text: 'Cancel', style: 'cancel', onPress: () => setShowModal(false) },
             { 
@@ -113,7 +118,7 @@ const TaskDetailsScreen = ({ route, navigation }) => {
       case 'upload':
         showCustomModal(
           '🟩 Upload Delivery',
-          `Task: "${task.title}"\nRequester: ${task.requesterName}\n\nReady to upload your completed work?\n\n✓ Make sure all requirements are met\n✓ Files are properly formatted\n✓ Work is complete and reviewed`,
+          `Task: "${task.title}"\nRequester: ${task.requesterName || 'N/A'}\n\nReady to upload your completed work?\n\n✓ Make sure all requirements are met\n✓ Files are properly formatted\n✓ Work is complete and reviewed`,
           [
             { text: 'Not Ready', style: 'cancel', onPress: () => setShowModal(false) },
             { 
@@ -207,6 +212,8 @@ const TaskDetailsScreen = ({ route, navigation }) => {
 
   // Calculate days left until due date
   const calculateDaysLeft = (dueDate) => {
+    if (!dueDate) return { text: 'No due date', isNormal: true };
+    
     const today = new Date();
     const due = new Date(dueDate);
     const diffTime = due - today;
@@ -353,6 +360,33 @@ const TaskDetailsScreen = ({ route, navigation }) => {
       }
     }
   };
+
+  // Handle missing taskId or navigation issues
+  if (!taskId && !initialTask) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Task Details</Text>
+          <View style={styles.headerRight} />
+        </View>
+        
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>❌</Text>
+          <Text style={styles.errorTitle}>Invalid Task</Text>
+          <Text style={styles.errorText}>No task information provided.</Text>
+          <TouchableOpacity 
+            style={styles.errorButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (loading) {
     return (
@@ -711,6 +745,7 @@ const TaskDetailsScreen = ({ route, navigation }) => {
 
 // Helper function to get subject colors
 const getSubjectColor = (subject) => {
+  if (!subject) return '#9e9e9e';
   switch (subject.toLowerCase()) {
     case 'math': return '#3f51b5';
     case 'coding': return '#00796b';
