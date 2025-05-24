@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 
 // Assign color based on subject
 const getTagColor = (subject) => {
+  if (!subject) return '#9e9e9e';
   switch (subject.toLowerCase()) {
     case 'math': return '#3f51b5';
     case 'coding': return '#00796b';
@@ -14,12 +15,15 @@ const getTagColor = (subject) => {
     case 'business': return '#388e3c';
     case 'psychology': return '#7b1fa2';
     case 'statistics': return '#c62828';
+    case 'science': return '#1976d2';
     default: return '#9e9e9e';
   }
 };
 
 // Calculate days left until due date
 const calculateDaysLeft = (dueDate) => {
+  if (!dueDate) return { text: 'No due date', isNormal: true };
+  
   const today = new Date();
   const due = new Date(dueDate);
   const diffTime = due - today;
@@ -58,6 +62,9 @@ const TaskCard = ({
   onPress, 
   onActionPress 
 }) => {
+  // Safety checks
+  if (!task) return null;
+  
   const statusInfo = getStatusInfo(task.status);
   const daysLeftInfo = calculateDaysLeft(task.dueDate);
   
@@ -71,19 +78,19 @@ const TaskCard = ({
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Text style={styles.title} numberOfLines={2}>
-            📌 {task.title}
+            📌 {task.title || 'Untitled Task'}
           </Text>
           <View style={[styles.tag, { backgroundColor: getTagColor(task.subject) }]}>
-            <Text style={styles.tagText}>{task.subject}</Text>
+            <Text style={styles.tagText}>{task.subject || 'General'}</Text>
           </View>
         </View>
-        <Text style={styles.price}>{task.price}</Text>
+        <Text style={styles.price}>{task.price || '$0'}</Text>
       </View>
 
       {/* Due date info */}
       <View style={styles.dueDateRow}>
         <Text style={styles.dueDateLabel}>📅 Due: </Text>
-        <Text style={styles.dueDateText}>{task.dueDate}</Text>
+        <Text style={styles.dueDateText}>{task.dueDate || 'No date set'}</Text>
         <View style={[
           styles.daysLeftBadge,
           daysLeftInfo.isOverdue && styles.overdueBadge,
@@ -109,7 +116,7 @@ const TaskCard = ({
           </Text>
         ) : (
           <Text style={styles.roleInfo}>
-            👤 Requester: {task.requesterName}
+            👤 Requester: {task.requesterName || 'Unknown'}
           </Text>
         )}
       </View>
@@ -118,9 +125,9 @@ const TaskCard = ({
       {!isRequester && task.progress !== undefined && (
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${task.progress}%` }]} />
+            <View style={[styles.progressFill, { width: `${Math.min(100, Math.max(0, task.progress))}%` }]} />
           </View>
-          <Text style={styles.progressText}>{task.progress}%</Text>
+          <Text style={styles.progressText}>{task.progress || 0}%</Text>
         </View>
       )}
 
@@ -162,6 +169,11 @@ const TaskCard = ({
           )}
         </View>
       )}
+
+      {/* Tap indicator */}
+      <View style={styles.tapIndicator}>
+        <Text style={styles.tapIndicatorText}>👆 Tap for details</Text>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -198,7 +210,6 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
     borderRadius: 16,
     shadowColor: '#000',
@@ -335,6 +346,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     marginTop: 8,
+    marginBottom: 8,
   },
   quickActionBtn: {
     backgroundColor: '#f8f9fa',
@@ -354,6 +366,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 8,
     gap: 6,
+    marginBottom: 8,
   },
   infoTag: {
     backgroundColor: '#f8f9fa',
@@ -365,6 +378,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#666',
     fontWeight: '500',
+  },
+  tapIndicator: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  tapIndicatorText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
 });
 
