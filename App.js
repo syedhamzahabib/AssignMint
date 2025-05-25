@@ -16,6 +16,7 @@ import {
 import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 // Mock API Service (same as before)
 const TasksAPI = {
@@ -551,21 +552,8 @@ export default function App() {
     </View>
   );
 
-  const renderProfileScreen = () => (
-    <View style={styles.screen}>
-      <Text style={styles.screenTitle}>👤 Profile</Text>
-      <View style={styles.comingSoon}>
-        <Text style={styles.comingSoonText}>Profile Settings</Text>
-        <Text style={styles.comingSoonSubtext}>Coming Soon!</Text>
-        <TouchableOpacity
-          style={styles.demoButton}
-          onPress={() => Alert.alert('Profile', 'Profile features would go here!')}
-        >
-          <Text style={styles.demoButtonText}>Demo Profile</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const renderProfileScreen = () => <ProfileScreen navigation={{ goBack: () => setActiveTab('home') }} />;
+
 
   const renderCurrentScreen = () => {
     switch (activeTab) {
