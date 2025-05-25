@@ -15,6 +15,7 @@ import {
 // Import the complete screens
 import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 
 // Mock API Service (same as before)
 const TasksAPI = {
@@ -361,6 +362,9 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [modalData, setModalData] = useState({ title: '', message: '', buttons: [] });
 
+  // Mock notification count - you can make this dynamic later
+  const [unreadNotifications] = useState(3);
+
   // Load My Tasks data when tab changes
   useEffect(() => {
     if (activeTab === 'tasks') {
@@ -571,6 +575,8 @@ export default function App() {
         return <PostScreen />;
       case 'tasks':
         return renderMyTasksScreen();
+      case 'notifications':
+        return <NotificationsScreen navigation={{ goBack: () => setActiveTab('home') }} />;
       case 'profile':
         return renderProfileScreen();
       default:
@@ -619,6 +625,24 @@ export default function App() {
           <Text style={styles.tabBarIcon}>📋</Text>
           <Text style={[styles.tabBarLabel, activeTab === 'tasks' && styles.activeTabBarLabel]}>
             My Tasks
+          </Text>
+        </TouchableOpacity>
+
+        {/* NEW NOTIFICATIONS TAB */}
+        <TouchableOpacity
+          style={[styles.tabBarItem, activeTab === 'notifications' && styles.activeTabBarItem]}
+          onPress={() => setActiveTab('notifications')}
+        >
+          <View style={styles.tabBarIconContainer}>
+            <Text style={styles.tabBarIcon}>🔔</Text>
+            {unreadNotifications > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.tabBarLabel, activeTab === 'notifications' && styles.activeTabBarLabel]}>
+            Notifications
           </Text>
         </TouchableOpacity>
 
@@ -1041,6 +1065,30 @@ const styles = StyleSheet.create({
   activeTabBarLabel: {
     color: '#2e7d32',
     fontWeight: '600',
+  },
+  
+  // NEW: Notification Badge Styles
+  tabBarIconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -6,
+    backgroundColor: '#ff6b6b',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   
   // Modal Styles
