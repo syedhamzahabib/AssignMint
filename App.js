@@ -17,6 +17,7 @@ import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import WalletScreen from './screens/WalletScreen'; // NEW IMPORT
 
 // Mock API Service (same as before)
 const TasksAPI = {
@@ -363,8 +364,28 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [modalData, setModalData] = useState({ title: '', message: '', buttons: [] });
 
+  // NEW: Wallet navigation state
+  const [showWallet, setShowWallet] = useState(false);
+  const [walletParams, setWalletParams] = useState({});
+
   // Mock notification count - you can make this dynamic later
   const [unreadNotifications] = useState(3);
+
+  // NEW: Navigation object for wallet integration
+  const navigation = {
+    navigate: (screenName, params = {}) => {
+      console.log(`🧭 Navigating to: ${screenName}`, params);
+      if (screenName === 'Wallet') {
+        setWalletParams(params || {});
+        setShowWallet(true);
+      }
+    },
+    goBack: () => {
+      console.log('🧭 Going back from wallet');
+      setShowWallet(false);
+      setWalletParams({});
+    }
+  };
 
   // Load My Tasks data when tab changes
   useEffect(() => {
@@ -552,10 +573,15 @@ export default function App() {
     </View>
   );
 
-  const renderProfileScreen = () => <ProfileScreen navigation={{ goBack: () => setActiveTab('home') }} />;
-
+  const renderProfileScreen = () => <ProfileScreen navigation={navigation} />;
 
   const renderCurrentScreen = () => {
+    // NEW: Handle wallet screen
+    if (showWallet) {
+      return <WalletScreen navigation={navigation} route={{ params: walletParams }} />;
+    }
+
+    // Original screen logic
     switch (activeTab) {
       case 'home':
         return <HomeScreen />;
@@ -564,7 +590,7 @@ export default function App() {
       case 'tasks':
         return renderMyTasksScreen();
       case 'notifications':
-        return <NotificationsScreen navigation={{ goBack: () => setActiveTab('home') }} />;
+        return <NotificationsScreen navigation={navigation} />;
       case 'profile':
         return renderProfileScreen();
       default:
@@ -584,66 +610,67 @@ export default function App() {
         {renderCurrentScreen()}
       </View>
 
-      {/* Bottom Tab Bar */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabBarItem, activeTab === 'home' && styles.activeTabBarItem]}
-          onPress={() => setActiveTab('home')}
-        >
-          <Text style={styles.tabBarIcon}>🏠</Text>
-          <Text style={[styles.tabBarLabel, activeTab === 'home' && styles.activeTabBarLabel]}>
-            Home
-          </Text>
-        </TouchableOpacity>
+      {/* Bottom Tab Bar - Only show if not on wallet screen */}
+      {!showWallet && (
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tabBarItem, activeTab === 'home' && styles.activeTabBarItem]}
+            onPress={() => setActiveTab('home')}
+          >
+            <Text style={styles.tabBarIcon}>🏠</Text>
+            <Text style={[styles.tabBarLabel, activeTab === 'home' && styles.activeTabBarLabel]}>
+              Home
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabBarItem, activeTab === 'post' && styles.activeTabBarItem]}
-          onPress={() => setActiveTab('post')}
-        >
-          <Text style={styles.tabBarIcon}>➕</Text>
-          <Text style={[styles.tabBarLabel, activeTab === 'post' && styles.activeTabBarLabel]}>
-            Post
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBarItem, activeTab === 'post' && styles.activeTabBarItem]}
+            onPress={() => setActiveTab('post')}
+          >
+            <Text style={styles.tabBarIcon}>➕</Text>
+            <Text style={[styles.tabBarLabel, activeTab === 'post' && styles.activeTabBarLabel]}>
+              Post
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabBarItem, activeTab === 'tasks' && styles.activeTabBarItem]}
-          onPress={() => setActiveTab('tasks')}
-        >
-          <Text style={styles.tabBarIcon}>📋</Text>
-          <Text style={[styles.tabBarLabel, activeTab === 'tasks' && styles.activeTabBarLabel]}>
-            My Tasks
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBarItem, activeTab === 'tasks' && styles.activeTabBarItem]}
+            onPress={() => setActiveTab('tasks')}
+          >
+            <Text style={styles.tabBarIcon}>📋</Text>
+            <Text style={[styles.tabBarLabel, activeTab === 'tasks' && styles.activeTabBarLabel]}>
+              My Tasks
+            </Text>
+          </TouchableOpacity>
 
-        {/* NEW NOTIFICATIONS TAB */}
-        <TouchableOpacity
-          style={[styles.tabBarItem, activeTab === 'notifications' && styles.activeTabBarItem]}
-          onPress={() => setActiveTab('notifications')}
-        >
-          <View style={styles.tabBarIconContainer}>
-            <Text style={styles.tabBarIcon}>🔔</Text>
-            {unreadNotifications > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.tabBarLabel, activeTab === 'notifications' && styles.activeTabBarLabel]}>
-            Notifications
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBarItem, activeTab === 'notifications' && styles.activeTabBarItem]}
+            onPress={() => setActiveTab('notifications')}
+          >
+            <View style={styles.tabBarIconContainer}>
+              <Text style={styles.tabBarIcon}>🔔</Text>
+              {unreadNotifications > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.tabBarLabel, activeTab === 'notifications' && styles.activeTabBarLabel]}>
+              Notifications
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabBarItem, activeTab === 'profile' && styles.activeTabBarItem]}
-          onPress={() => setActiveTab('profile')}
-        >
-          <Text style={styles.tabBarIcon}>👤</Text>
-          <Text style={[styles.tabBarLabel, activeTab === 'profile' && styles.activeTabBarLabel]}>
-            Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.tabBarItem, activeTab === 'profile' && styles.activeTabBarItem]}
+            onPress={() => setActiveTab('profile')}
+          >
+            <Text style={styles.tabBarIcon}>👤</Text>
+            <Text style={[styles.tabBarLabel, activeTab === 'profile' && styles.activeTabBarLabel]}>
+              Profile
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Modal */}
       <Modal
@@ -995,38 +1022,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   
-  // Coming Soon Styles
-  comingSoon: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  comingSoonText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  comingSoonSubtext: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  demoButton: {
-    backgroundColor: '#2e7d32',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  demoButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  
   // Tab Bar Styles
   tabBar: {
     flexDirection: 'row',
@@ -1050,12 +1045,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#666',
   },
+  activeTabBarItem: {
+    // Add any specific styling for active tab if needed
+  },
   activeTabBarLabel: {
     color: '#2e7d32',
     fontWeight: '600',
   },
   
-  // NEW: Notification Badge Styles
+  // Notification Badge Styles
   tabBarIconContainer: {
     position: 'relative',
     alignItems: 'center',

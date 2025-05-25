@@ -11,6 +11,7 @@ import {
 const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => {
   const [selectedPayment, setSelectedPayment] = useState(null);
 
+  // Mock payment methods - you can make this dynamic later
   const paymentMethods = [
     { id: '1', name: 'Visa •••• 4242', icon: '💳' },
     { id: '2', name: 'Mastercard •••• 8888', icon: '💳' },
@@ -58,6 +59,19 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
       return;
     }
     onNext();
+  };
+
+  // Create a simple navigation object for wallet access
+  const navigation = {
+    navigate: (screenName, params = {}) => {
+      if (screenName === 'Wallet') {
+        Alert.alert(
+          '💰 Wallet Integration',
+          'This would open the wallet screen to add payment methods.\n\nFor now, this is a demo - you can select from the mock payment methods above.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
   };
 
   return (
@@ -152,6 +166,26 @@ const StepFive = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
               )}
             </TouchableOpacity>
           ))}
+
+          {/* WALLET INTEGRATION - No Payment Methods Fallback */}
+          {paymentMethods.length === 0 && (
+            <View style={styles.noPaymentMethodsCard}>
+              <Text style={styles.noPaymentIcon}>💳</Text>
+              <Text style={styles.noPaymentTitle}>No Payment Methods</Text>
+              <Text style={styles.noPaymentText}>
+                Add a payment method to your wallet to complete task posting
+              </Text>
+              <TouchableOpacity 
+                style={styles.addWalletButton}
+                onPress={() => navigation.navigate('Wallet', { 
+                  fromPostTask: true,
+                  action: 'addPayment' 
+                })}
+              >
+                <Text style={styles.addWalletButtonText}>Add Payment Wallet →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Cost Breakdown */}
@@ -211,6 +245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
   },
@@ -218,7 +253,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#111' },
   headerRight: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingTop: 20, paddingBottom: 100 },
+  scrollContent: { paddingTop: 20, paddingHorizontal: 20, paddingBottom: 100 },
   bottomSpacer: { height: 20 },
   summaryCard: {
     backgroundColor: '#fff',
@@ -309,6 +344,54 @@ const styles = StyleSheet.create({
   paymentIcon: { fontSize: 20, marginRight: 12 },
   paymentName: { fontSize: 16, color: '#333', flex: 1 },
   checkmark: { fontSize: 18, color: '#2e7d32', fontWeight: 'bold' },
+
+  // NEW WALLET INTEGRATION STYLES
+  noPaymentMethodsCard: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ff9800',
+    borderStyle: 'dashed',
+    marginTop: 16,
+  },
+  noPaymentIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  noPaymentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#e65100',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noPaymentText: {
+    fontSize: 14,
+    color: '#e65100',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  addWalletButton: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    shadowColor: '#ff9800',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addWalletButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
   costCard: {
     backgroundColor: '#fff',
     borderRadius: 12,

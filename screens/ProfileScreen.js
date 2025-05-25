@@ -442,17 +442,35 @@ const ProfileScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Balance & Withdraw */}
+      {/* Balance & Withdraw - UPDATED FOR WALLET INTEGRATION */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>💰 Current Balance</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>💰 Current Balance</Text>
+          <TouchableOpacity 
+            onPress={() => navigation && navigation.navigate('Wallet')}
+            style={styles.viewAllButton}
+          >
+            <Text style={styles.viewAllText}>View All →</Text>
+          </TouchableOpacity>
+        </View>
+        
         <View style={styles.balanceCard}>
           <Text style={styles.balanceAmount}>${profile.expertStats.currentBalance.toFixed(2)}</Text>
-          <TouchableOpacity 
-            style={styles.withdrawButton}
-            onPress={() => setShowWithdrawModal(true)}
-          >
-            <Text style={styles.withdrawButtonText}>Withdraw</Text>
-          </TouchableOpacity>
+          <View style={styles.balanceButtons}>
+            <TouchableOpacity 
+              style={styles.withdrawButton}
+              onPress={() => navigation && navigation.navigate('Wallet', { action: 'withdraw' })}
+            >
+              <Text style={styles.withdrawButtonText}>Withdraw Funds →</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.transactionsButton}
+              onPress={() => navigation && navigation.navigate('Wallet')}
+            >
+              <Text style={styles.transactionsButtonText}>View Transactions →</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -915,6 +933,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  // NEW WALLET STYLES
+  viewAllButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  viewAllText: {
+    color: '#2e7d32',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  balanceButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  transactionsButton: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  transactionsButtonText: {
+    color: '#2e7d32',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   // History Grid
   historyGrid: {
     flexDirection: 'row',
@@ -1009,9 +1059,6 @@ const styles = StyleSheet.create({
 
   // Balance Card
   balanceCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     backgroundColor: '#e8f5e8',
     borderRadius: 12,
     padding: 20,
@@ -1022,12 +1069,14 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '800',
     color: '#2e7d32',
+    marginBottom: 12,
   },
   withdrawButton: {
+    flex: 1,
     backgroundColor: '#2e7d32',
-    paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+    alignItems: 'center',
     shadowColor: '#2e7d32',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
@@ -1036,7 +1085,7 @@ const styles = StyleSheet.create({
   },
   withdrawButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
 
