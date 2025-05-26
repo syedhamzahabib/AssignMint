@@ -1,24 +1,38 @@
+// screens/ProfileScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   ScrollView,
   SafeAreaView,
   Alert,
-  TextInput,
-  Modal,
   ActivityIndicator,
   RefreshControl,
+  Animated,
+  View,
+  Text,
+  TouchableOpacity,
 } from 'react-native';
 
-// Mock API calls - you can replace these with your actual API
+// Import modular components
+import ProfileHeader from '../components/profile/ProfileHeader';
+import StatsCards from '../components/profile/StatsCards';
+import SpendingChart from '../components/profile/SpendingChart';
+import TaskOverview from '../components/profile/TaskOverview';
+import { ExpertsList } from '../components/profile/ExpertCard';
+import { PaymentMethodsList } from '../components/profile/PaymentMethodCard';
+import WalletPreview from '../components/profile/WalletPreview';
+import SettingsSection from '../components/profile/SettingsSection';
+
+// Import modals
+import StatsModal from '../components/profile/modals/StatsModal';
+import AchievementsModal from '../components/profile/modals/AchievementsModal';
+
+// Enhanced Mock API with more detailed data
 const ProfileAPI = {
   delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
   
   async getUserProfile() {
-    await this.delay(500);
+    await this.delay(800);
     return {
       success: true,
       data: {
@@ -27,132 +41,195 @@ const ProfileAPI = {
         email: 'sarah.m@example.com',
         joinDate: '2024-01-15',
         avatar: '👩‍💼',
+        memberSince: 156, // days
         
-        // Requester stats
+        // Enhanced Requester stats
         requesterStats: {
-          tasksPosted: 12,
-          totalSpent: 450,
+          tasksPosted: 23,
+          totalSpent: 845.50,
           avgRating: 4.8,
-          completedTasks: 10,
-          cancelledTasks: 1,
+          completedTasks: 20,
+          cancelledTasks: 2,
           disputedTasks: 1,
+          avgResponseTime: '2.3 hours',
+          preferredSubjects: ['Math', 'Coding', 'Writing'],
+          monthlySpending: [
+            { month: 'Jan', amount: 125 },
+            { month: 'Feb', amount: 180 },
+            { month: 'Mar', amount: 220 },
+            { month: 'Apr', amount: 195 },
+            { month: 'May', amount: 125.50 },
+          ],
+          recentActivity: [
+            { date: '2025-05-23', action: 'Approved task', task: 'Python Script Debug' },
+            { date: '2025-05-21', action: 'Posted new task', task: 'Statistics Analysis' },
+            { date: '2025-05-19', action: 'Disputed task', task: 'Chemistry Lab Report' },
+          ]
         },
         
-        // Expert stats  
+        // Enhanced Expert stats (for dual-role users)
         expertStats: {
-          tasksCompleted: 25,
-          totalEarned: 680,
-          avgRating: 4.9,
-          totalReviews: 23,
-          responseTime: '2 hours',
-          completionRate: 96,
-          currentBalance: 125.50,
+          tasksCompleted: 8,
+          totalEarned: 285.00,
+          avgRating: 4.6,
+          totalReviews: 7,
+          responseTime: '3.2 hours',
+          completionRate: 87,
+          currentBalance: 45.25,
+          specialties: ['Math', 'Physics'],
         },
         
-        expertBio: 'Experienced in Math, Physics, and Computer Science. I help students understand complex concepts with clear explanations and step-by-step solutions.',
-        
-        favoriteExperts: [
-          { id: 'exp1', name: 'Alex Kumar', rating: 4.9, completedTasks: 15, subject: 'Coding' },
-          { id: 'exp2', name: 'Emily Rodriguez', rating: 4.7, completedTasks: 8, subject: 'Writing' },
-          { id: 'exp3', name: 'Dr. James Wilson', rating: 4.8, completedTasks: 12, subject: 'Chemistry' },
-        ],
-        
-        paymentMethods: [
-          { id: 'pm1', type: 'card', name: 'Visa •••• 4242', isDefault: true },
-          { id: 'pm2', type: 'card', name: 'Mastercard •••• 8888', isDefault: false },
-          { id: 'pm3', type: 'paypal', name: 'PayPal Account', isDefault: false },
-        ],
-        
-        recentReviews: [
-          {
-            id: 'rev1',
-            rating: 5,
-            comment: 'Excellent work! Very detailed explanations and delivered on time.',
-            taskTitle: 'Calculus Problems',
-            date: '2025-01-20',
-            requesterName: 'John D.'
-          },
-          {
-            id: 'rev2', 
-            rating: 4,
-            comment: 'Good work, but could have been faster.',
-            taskTitle: 'Python Debugging',
-            date: '2025-01-18',
-            requesterName: 'Maria G.'
-          },
-          {
-            id: 'rev3',
-            rating: 5,
-            comment: 'Perfect! Exactly what I needed.',
-            taskTitle: 'Essay Writing',
-            date: '2025-01-15',
-            requesterName: 'David P.'
-          },
-        ],
-        
-        settings: {
+        // User preferences and profile customization
+        preferences: {
+          theme: 'light',
           notifications: {
             taskUpdates: true,
             messages: true,
             payments: true,
             marketing: false,
+            weeklyDigest: true,
           },
           privacy: {
             profileVisible: true,
             showStats: true,
             allowMessages: true,
+            showActivity: false,
+          },
+          communication: {
+            preferredLanguage: 'English',
+            timezone: 'PST',
+            autoResponder: false,
           }
+        },
+        
+        // Enhanced favorite experts with more details
+        favoriteExperts: [
+          { 
+            id: 'exp1', 
+            name: 'Alex Kumar', 
+            rating: 4.9, 
+            completedTasks: 15, 
+            subject: 'Coding',
+            lastWorked: '2025-05-20',
+            totalPaid: 185.00,
+            avgDeliveryTime: '1.8 days'
+          },
+          { 
+            id: 'exp2', 
+            name: 'Emily Rodriguez', 
+            rating: 4.7, 
+            completedTasks: 8, 
+            subject: 'Writing',
+            lastWorked: '2025-05-15',
+            totalPaid: 120.00,
+            avgDeliveryTime: '2.1 days'
+          },
+          { 
+            id: 'exp3', 
+            name: 'Dr. James Wilson', 
+            rating: 4.8, 
+            completedTasks: 12, 
+            subject: 'Chemistry',
+            lastWorked: '2025-05-10',
+            totalPaid: 300.00,
+            avgDeliveryTime: '3.2 days'
+          },
+        ],
+        
+        // Enhanced payment methods
+        paymentMethods: [
+          { 
+            id: 'pm1', 
+            type: 'card', 
+            name: 'Visa •••• 4242', 
+            isDefault: true,
+            expiryMonth: 12,
+            expiryYear: 2027,
+            lastUsed: '2025-05-23'
+          },
+          { 
+            id: 'pm2', 
+            type: 'card', 
+            name: 'Mastercard •••• 8888', 
+            isDefault: false,
+            expiryMonth: 8,
+            expiryYear: 2026,
+            lastUsed: '2025-05-15'
+          },
+          { 
+            id: 'pm3', 
+            type: 'paypal', 
+            name: 'PayPal Account', 
+            isDefault: false,
+            email: 'sarah.m@example.com',
+            lastUsed: '2025-05-01'
+          },
+        ],
+        
+        // Achievement system
+        achievements: [
+          { id: 'first_task', name: 'First Task Posted', icon: '🎯', unlocked: true, date: '2024-01-18' },
+          { id: 'five_star', name: '5-Star Requester', icon: '⭐', unlocked: true, date: '2024-02-10' },
+          { id: 'big_spender', name: 'Big Spender ($500+)', icon: '💰', unlocked: true, date: '2024-04-15' },
+          { id: 'loyal_customer', name: '6 Month Member', icon: '🏆', unlocked: true, date: '2024-07-15' },
+          { id: 'expert_finder', name: 'Expert Finder (10+ tasks)', icon: '🔍', unlocked: true, date: '2024-03-20' },
+          { id: 'speed_poster', name: 'Speed Poster', icon: '⚡', unlocked: false, date: null },
+        ],
+        
+        // Quick stats for dashboard
+        quickStats: {
+          tasksThisMonth: 5,
+          avgTaskValue: 36.76,
+          favoriteTimeOfDay: 'Evening',
+          mostUsedSubject: 'Math',
+          successRate: 95,
         }
       }
     };
   },
   
   async updateProfile(updates) {
-    await this.delay(800);
+    await this.delay(1200);
     console.log('📝 Updating profile:', updates);
-    return { success: true, message: 'Profile updated successfully!' };
+    
+    if (updates.nickname && updates.nickname.length < 2) {
+      throw { success: false, message: 'Nickname must be at least 2 characters' };
+    }
+    
+    return { success: true, message: 'Profile updated successfully! ✨' };
   },
   
-  async withdrawFunds(amount) {
-    await this.delay(1000);
-    if (amount > 125.50) {
-      throw { success: false, message: 'Insufficient balance' };
-    }
-    return { success: true, message: `$${amount} withdrawal request submitted!` };
-  }
+  async toggleFavoriteExpert(expertId, shouldFavorite) {
+    await this.delay(600);
+    return { 
+      success: true, 
+      message: shouldFavorite ? 'Expert added to favorites!' : 'Expert removed from favorites' 
+    };
+  },
 };
 
 const ProfileScreen = ({ navigation }) => {
-  const [activeTab, setActiveTab] = useState('requester'); // Will be determined by user activity
+  const [activeTab, setActiveTab] = useState('requester');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [editingNickname, setEditingNickname] = useState(false);
-  const [newNickname, setNewNickname] = useState('');
-  const [editingBio, setEditingBio] = useState(false);
-  const [newBio, setNewBio] = useState('');
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
 
   useEffect(() => {
     loadProfile();
   }, []);
 
-  // Determine default tab based on user activity
   useEffect(() => {
     if (profile) {
-      const hasExpertActivity = profile.expertStats.tasksCompleted > 0;
-      const hasRequesterActivity = profile.requesterStats.tasksPosted > 0;
-      
-      if (hasExpertActivity && !hasRequesterActivity) {
-        setActiveTab('expert');
-      } else if (hasRequesterActivity && hasExpertActivity) {
-        // More expert activity - default to expert
-        setActiveTab(profile.expertStats.tasksCompleted >= profile.requesterStats.tasksPosted ? 'expert' : 'requester');
-      }
-      // Default stays 'requester' if no clear preference
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [profile]);
+  }, [profile, fadeAnim]);
 
   const loadProfile = async () => {
     try {
@@ -160,8 +237,19 @@ const ProfileScreen = ({ navigation }) => {
       const response = await ProfileAPI.getUserProfile();
       if (response.success) {
         setProfile(response.data);
-        setNewNickname(response.data.nickname);
-        setNewBio(response.data.expertBio);
+        
+        // Auto-determine tab based on activity
+        const hasExpertActivity = response.data.expertStats.tasksCompleted > 0;
+        const hasRequesterActivity = response.data.requesterStats.tasksPosted > 0;
+        
+        if (hasExpertActivity && !hasRequesterActivity) {
+          setActiveTab('expert');
+        } else if (hasRequesterActivity && hasExpertActivity) {
+          setActiveTab(
+            response.data.expertStats.tasksCompleted >= response.data.requesterStats.tasksPosted 
+              ? 'expert' : 'requester'
+          );
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load profile');
@@ -176,79 +264,75 @@ const ProfileScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  const handleUpdateNickname = async () => {
-    if (!newNickname.trim()) {
-      Alert.alert('Error', 'Nickname cannot be empty');
-      return;
-    }
-    
+  const handleUpdateNickname = async (newNickname) => {
     try {
-      const response = await ProfileAPI.updateProfile({ nickname: newNickname.trim() });
+      const response = await ProfileAPI.updateProfile({ nickname: newNickname });
       if (response.success) {
-        setProfile(prev => ({ ...prev, nickname: newNickname.trim() }));
-        setEditingNickname(false);
-        Alert.alert('Success', 'Nickname updated!');
+        setProfile(prev => ({ ...prev, nickname: newNickname }));
+        Alert.alert('Success! 🎉', response.message);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update nickname');
+      throw error;
     }
   };
 
-  const handleUpdateBio = async () => {
-    try {
-      const response = await ProfileAPI.updateProfile({ expertBio: newBio });
-      if (response.success) {
-        setProfile(prev => ({ ...prev, expertBio: newBio }));
-        setEditingBio(false);
-        Alert.alert('Success', 'Bio updated!');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update bio');
+  const handleQuickAction = (action) => {
+    switch (action) {
+      case 'stats':
+        setShowStatsModal(true);
+        break;
+      case 'achievements':
+        setShowAchievementsModal(true);
+        break;
+      case 'wallet':
+        navigation && navigation.navigate('Wallet');
+        break;
     }
   };
 
-  const handleWithdraw = async () => {
-    const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
+  const handleFavoriteToggle = async (expertId, isFavorited) => {
     try {
-      const response = await ProfileAPI.withdrawFunds(amount);
+      const response = await ProfileAPI.toggleFavoriteExpert(expertId, !isFavorited);
       if (response.success) {
         setProfile(prev => ({
           ...prev,
-          expertStats: {
-            ...prev.expertStats,
-            currentBalance: prev.expertStats.currentBalance - amount
-          }
+          favoriteExperts: isFavorited 
+            ? prev.favoriteExperts.filter(e => e.id !== expertId)
+            : [...prev.favoriteExperts]
         }));
-        setShowWithdrawModal(false);
-        setWithdrawAmount('');
-        Alert.alert('Success', response.message);
+        Alert.alert('Updated!', response.message);
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Withdrawal failed');
+      Alert.alert('Error', 'Failed to update favorites');
     }
   };
 
-  const handleLogout = () => {
+  const handleHireExpert = (expert) => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      '🎯 Hire Expert',
+      `Would you like to create a new task for ${expert.name}?\n\nThey specialize in ${expert.subject} and have completed ${expert.completedTasks} tasks with a ${expert.rating}⭐ rating.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: () => {
-            // Handle logout logic here
-            Alert.alert('Logged Out', 'You have been logged out successfully');
-          }
-        }
+        { text: 'Create Task', onPress: () => {
+          // Navigate to PostScreen with expert pre-selected
+          Alert.alert('Coming Soon!', 'Expert hiring integration coming soon!');
+        }}
       ]
     );
+  };
+
+  const handleWalletActions = {
+    onOpenWallet: () => navigation && navigation.navigate('Wallet'),
+    onQuickWithdraw: () => navigation && navigation.navigate('Wallet', { action: 'withdraw' }),
+  };
+
+  const handlePaymentActions = {
+    onEdit: (method) => Alert.alert('Edit Payment', `Edit ${method.name} - Coming soon!`),
+    onAdd: () => Alert.alert('Add Payment', 'Add new payment method - Coming soon!'),
+  };
+
+  const handleSettingsPress = (setting) => {
+    Alert.alert('Settings', `${setting} settings - Coming soon!`);
   };
 
   if (loading) {
@@ -256,7 +340,7 @@ const ProfileScreen = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2e7d32" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          <Text style={styles.loadingText}>Loading your profile...</Text>
         </View>
       </SafeAreaView>
     );
@@ -266,55 +350,15 @@ const ProfileScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>😔</Text>
           <Text style={styles.errorText}>Failed to load profile</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.profileInfo}>
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatar}>{profile.avatar}</Text>
-        </View>
-        <View style={styles.userInfo}>
-          {editingNickname ? (
-            <View style={styles.editContainer}>
-              <TextInput
-                style={styles.editInput}
-                value={newNickname}
-                onChangeText={setNewNickname}
-                placeholder="Enter nickname"
-                maxLength={30}
-              />
-              <View style={styles.editButtons}>
-                <TouchableOpacity onPress={() => setEditingNickname(false)}>
-                  <Text style={styles.cancelButton}>❌</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleUpdateNickname}>
-                  <Text style={styles.saveButton}>✅</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.nicknameContainer} 
-              onPress={() => setEditingNickname(true)}
-            >
-              <Text style={styles.nickname}>{profile.nickname}</Text>
-              <Text style={styles.editIcon}>✏️</Text>
-            </TouchableOpacity>
-          )}
-          <Text style={styles.email}>{profile.email}</Text>
-          <Text style={styles.joinDate}>Joined {new Date(profile.joinDate).toLocaleDateString()}</Text>
-        </View>
-      </View>
-    </View>
-  );
 
   const renderTabToggle = () => (
     <View style={styles.tabContainer}>
@@ -345,256 +389,52 @@ const ProfileScreen = ({ navigation }) => {
   );
 
   const renderRequesterView = () => (
-    <View style={styles.roleContent}>
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{profile.requesterStats.tasksPosted}</Text>
-          <Text style={styles.statLabel}>Tasks Posted</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>${profile.requesterStats.totalSpent}</Text>
-          <Text style={styles.statLabel}>Total Spent</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{profile.requesterStats.avgRating}⭐</Text>
-          <Text style={styles.statLabel}>Avg Rating</Text>
-        </View>
-      </View>
+    <Animated.View style={[styles.roleContent, { opacity: fadeAnim }]}>
+      <StatsCards 
+        stats={{
+          tasksPosted: profile.requesterStats.tasksPosted,
+          totalSpent: profile.requesterStats.totalSpent,
+          avgRating: profile.requesterStats.avgRating,
+          tasksThisMonth: profile.quickStats.tasksThisMonth,
+          avgTaskValue: profile.quickStats.avgTaskValue,
+          successRate: profile.quickStats.successRate,
+        }}
+        fadeAnim={fadeAnim}
+      />
 
-      {/* Task History Summary */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📈 Task History</Text>
-        <View style={styles.historyGrid}>
-          <View style={styles.historyItem}>
-            <Text style={styles.historyNumber}>{profile.requesterStats.completedTasks}</Text>
-            <Text style={styles.historyLabel}>Completed</Text>
-          </View>
-          <View style={styles.historyItem}>
-            <Text style={styles.historyNumber}>{profile.requesterStats.cancelledTasks}</Text>
-            <Text style={styles.historyLabel}>Cancelled</Text>
-          </View>
-          <View style={styles.historyItem}>
-            <Text style={styles.historyNumber}>{profile.requesterStats.disputedTasks}</Text>
-            <Text style={styles.historyLabel}>Disputed</Text>
-          </View>
-        </View>
-      </View>
+      <SpendingChart 
+        monthlyData={profile.requesterStats.monthlySpending}
+        maxAmount={250}
+      />
 
-      {/* Favorite Experts */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⭐ Favorite Experts</Text>
-        {profile.favoriteExperts.map((expert) => (
-          <View key={expert.id} style={styles.expertCard}>
-            <View style={styles.expertInfo}>
-              <Text style={styles.expertName}>{expert.name}</Text>
-              <Text style={styles.expertSubject}>{expert.subject}</Text>
-            </View>
-            <View style={styles.expertStats}>
-              <Text style={styles.expertRating}>{expert.rating}⭐</Text>
-              <Text style={styles.expertTasks}>{expert.completedTasks} tasks</Text>
-            </View>
-          </View>
-        ))}
-      </View>
+      <TaskOverview stats={profile.requesterStats} />
 
-      {/* Payment Methods */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>💳 Payment Methods</Text>
-          <TouchableOpacity style={styles.addButton}>
-            <Text style={styles.addButtonText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
-        {profile.paymentMethods.map((method) => (
-          <View key={method.id} style={styles.paymentCard}>
-            <Text style={styles.paymentIcon}>
-              {method.type === 'card' ? '💳' : '🅿️'}
-            </Text>
-            <View style={styles.paymentInfo}>
-              <Text style={styles.paymentName}>{method.name}</Text>
-              {method.isDefault && <Text style={styles.defaultBadge}>Default</Text>}
-            </View>
-            <TouchableOpacity>
-              <Text style={styles.editText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
-    </View>
+      <ExpertsList
+        experts={profile.favoriteExperts}
+        onFavoriteToggle={handleFavoriteToggle}
+        onHireAgain={handleHireExpert}
+      />
+
+      <PaymentMethodsList
+        paymentMethods={profile.paymentMethods}
+        onEdit={handlePaymentActions.onEdit}
+        onAdd={handlePaymentActions.onAdd}
+      />
+
+      <WalletPreview
+        balance={profile.expertStats.currentBalance}
+        onOpenWallet={handleWalletActions.onOpenWallet}
+        onQuickWithdraw={handleWalletActions.onQuickWithdraw}
+      />
+    </Animated.View>
   );
 
   const renderExpertView = () => (
-    <View style={styles.roleContent}>
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{profile.expertStats.tasksCompleted}</Text>
-          <Text style={styles.statLabel}>Tasks Done</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>${profile.expertStats.totalEarned}</Text>
-          <Text style={styles.statLabel}>Total Earned</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{profile.expertStats.avgRating}⭐</Text>
-          <Text style={styles.statLabel}>Rating</Text>
-        </View>
-      </View>
-
-      {/* Balance & Withdraw - UPDATED FOR WALLET INTEGRATION */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>💰 Current Balance</Text>
-          <TouchableOpacity 
-            onPress={() => navigation && navigation.navigate('Wallet')}
-            style={styles.viewAllButton}
-          >
-            <Text style={styles.viewAllText}>View All →</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceAmount}>${profile.expertStats.currentBalance.toFixed(2)}</Text>
-          <View style={styles.balanceButtons}>
-            <TouchableOpacity 
-              style={styles.withdrawButton}
-              onPress={() => navigation && navigation.navigate('Wallet', { action: 'withdraw' })}
-            >
-              <Text style={styles.withdrawButtonText}>Withdraw Funds →</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.transactionsButton}
-              onPress={() => navigation && navigation.navigate('Wallet')}
-            >
-              <Text style={styles.transactionsButtonText}>View Transactions →</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Expert Bio */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>📝 Expert Bio</Text>
-          <TouchableOpacity onPress={() => setEditingBio(true)}>
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-        {editingBio ? (
-          <View style={styles.bioEditContainer}>
-            <TextInput
-              style={styles.bioInput}
-              value={newBio}
-              onChangeText={setNewBio}
-              placeholder="Describe your expertise..."
-              multiline
-              numberOfLines={4}
-              maxLength={500}
-            />
-            <Text style={styles.charCount}>{newBio.length}/500</Text>
-            <View style={styles.bioButtons}>
-              <TouchableOpacity 
-                style={styles.bioCancel}
-                onPress={() => {
-                  setEditingBio(false);
-                  setNewBio(profile.expertBio);
-                }}
-              >
-                <Text style={styles.bioCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.bioSave}
-                onPress={handleUpdateBio}
-              >
-                <Text style={styles.bioSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <Text style={styles.bioText}>{profile.expertBio}</Text>
-        )}
-      </View>
-
-      {/* Performance Stats */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>📊 Performance</Text>
-        <View style={styles.performanceGrid}>
-          <View style={styles.performanceItem}>
-            <Text style={styles.performanceNumber}>{profile.expertStats.totalReviews}</Text>
-            <Text style={styles.performanceLabel}>Reviews</Text>
-          </View>
-          <View style={styles.performanceItem}>
-            <Text style={styles.performanceNumber}>{profile.expertStats.responseTime}</Text>
-            <Text style={styles.performanceLabel}>Avg Response</Text>
-          </View>
-          <View style={styles.performanceItem}>
-            <Text style={styles.performanceNumber}>{profile.expertStats.completionRate}%</Text>
-            <Text style={styles.performanceLabel}>Completion Rate</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Recent Reviews */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>⭐ Recent Reviews</Text>
-        {profile.recentReviews.map((review) => (
-          <View key={review.id} style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <View style={styles.reviewRating}>
-                <Text style={styles.reviewStars}>{'⭐'.repeat(review.rating)}</Text>
-                <Text style={styles.reviewDate}>{new Date(review.date).toLocaleDateString()}</Text>
-              </View>
-              <Text style={styles.reviewAuthor}>{review.requesterName}</Text>
-            </View>
-            <Text style={styles.reviewTask}>{review.taskTitle}</Text>
-            <Text style={styles.reviewComment}>"{review.comment}"</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderSharedSettings = () => (
-    <View style={styles.settingsSection}>
-      <Text style={styles.sectionTitle}>⚙️ Settings</Text>
-      
-      <TouchableOpacity style={styles.settingItem}>
-        <Text style={styles.settingIcon}>🔔</Text>
-        <View style={styles.settingInfo}>
-          <Text style={styles.settingName}>Notifications</Text>
-          <Text style={styles.settingDesc}>Manage your notification preferences</Text>
-        </View>
-        <Text style={styles.settingArrow}>›</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingItem}>
-        <Text style={styles.settingIcon}>🔒</Text>
-        <View style={styles.settingInfo}>
-          <Text style={styles.settingName}>Privacy & Security</Text>
-          <Text style={styles.settingDesc}>Account security and privacy settings</Text>
-        </View>
-        <Text style={styles.settingArrow}>›</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingItem}>
-        <Text style={styles.settingIcon}>❓</Text>
-        <View style={styles.settingInfo}>
-          <Text style={styles.settingName}>Help & Support</Text>
-          <Text style={styles.settingDesc}>Get help and contact support</Text>
-        </View>
-        <Text style={styles.settingArrow}>›</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.settingItem} onPress={handleLogout}>
-        <Text style={styles.settingIcon}>🚪</Text>
-        <View style={styles.settingInfo}>
-          <Text style={[styles.settingName, styles.logoutText]}>Logout</Text>
-          <Text style={styles.settingDesc}>Sign out of your account</Text>
-        </View>
-        <Text style={styles.settingArrow}>›</Text>
-      </TouchableOpacity>
+    <View style={styles.expertPlaceholder}>
+      <Text style={styles.placeholderText}>Expert view coming soon! 🎓</Text>
+      <Text style={styles.placeholderSubtext}>
+        This section will show your expert profile, earnings, and completed tasks.
+      </Text>
     </View>
   );
 
@@ -612,64 +452,37 @@ const ProfileScreen = ({ navigation }) => {
           />
         }
       >
-        {renderHeader()}
+        <ProfileHeader
+          profile={profile}
+          fadeAnim={fadeAnim}
+          onUpdateNickname={handleUpdateNickname}
+          onQuickAction={handleQuickAction}
+        />
+
         {renderTabToggle()}
         
         {activeTab === 'requester' ? renderRequesterView() : renderExpertView()}
         
-        {renderSharedSettings()}
+        <SettingsSection
+          preferences={profile.preferences}
+          onSettingPress={handleSettingsPress}
+        />
         
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Withdraw Modal */}
-      <Modal
-        visible={showWithdrawModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowWithdrawModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>💰 Withdraw Funds</Text>
-            <Text style={styles.modalSubtitle}>
-              Available balance: ${profile.expertStats.currentBalance.toFixed(2)}
-            </Text>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Amount to withdraw:</Text>
-              <View style={styles.amountInput}>
-                <Text style={styles.currencySymbol}>$</Text>
-                <TextInput
-                  style={styles.amountField}
-                  value={withdrawAmount}
-                  onChangeText={setWithdrawAmount}
-                  keyboardType="numeric"
-                  placeholder="0.00"
-                />
-              </View>
-            </View>
+      {/* Modals */}
+      <StatsModal
+        visible={showStatsModal}
+        onClose={() => setShowStatsModal(false)}
+        profile={profile}
+      />
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalCancel}
-                onPress={() => {
-                  setShowWithdrawModal(false);
-                  setWithdrawAmount('');
-                }}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.modalConfirm}
-                onPress={handleWithdraw}
-              >
-                <Text style={styles.modalConfirmText}>Withdraw</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <AchievementsModal
+        visible={showAchievementsModal}
+        onClose={() => setShowAchievementsModal(false)}
+        achievements={profile.achievements}
+      />
     </SafeAreaView>
   );
 };
@@ -683,11 +496,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
   loadingText: {
     fontSize: 16,
     color: '#666',
     marginTop: 12,
+    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
@@ -695,17 +510,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
   },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
   errorText: {
     fontSize: 18,
     color: '#666',
-    marginBottom: 20,
     textAlign: 'center',
+    marginBottom: 24,
   },
   retryButton: {
     backgroundColor: '#2e7d32',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   retryButtonText: {
     color: '#fff',
@@ -718,86 +537,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
-  
-  // Header Styles
-  header: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  profileInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  avatar: {
-    fontSize: 36,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  nicknameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  nickname: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111',
-    marginRight: 8,
-  },
-  editIcon: {
-    fontSize: 16,
-  },
-  email: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 2,
-  },
-  joinDate: {
-    fontSize: 14,
-    color: '#999',
-  },
-  editContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  editInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  editButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  cancelButton: {
-    fontSize: 18,
-    paddingHorizontal: 8,
-  },
-  saveButton: {
-    fontSize: 18,
-    paddingHorizontal: 8,
-  },
-
-  // Tab Styles
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -848,497 +587,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#666',
   },
-
-  // Content Styles
   roleContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
   },
-  
-  // Stats Cards
-  statsContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 8,
-  },
-  statCard: {
+  expertPlaceholder: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#2e7d32',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-
-  // Section Styles
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 12,
-  },
-  addButton: {
-    backgroundColor: '#2e7d32',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  editText: {
-    color: '#2e7d32',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // NEW WALLET STYLES
-  viewAllButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  viewAllText: {
-    color: '#2e7d32',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  balanceButtons: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  transactionsButton: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  transactionsButtonText: {
-    color: '#2e7d32',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // History Grid
-  historyGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  historyItem: {
-    alignItems: 'center',
-  },
-  historyNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
-  },
-  historyLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-  },
-
-  // Expert Cards
-  expertCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  expertInfo: {
-    flex: 1,
-  },
-  expertName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 2,
-  },
-  expertSubject: {
-    fontSize: 14,
-    color: '#666',
-  },
-  expertStats: {
-    alignItems: 'flex-end',
-  },
-  expertRating: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ff9800',
-    marginBottom: 2,
-  },
-  expertTasks: {
-    fontSize: 12,
-    color: '#999',
-  },
-
-  // Payment Cards
-  paymentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
-  paymentIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  paymentInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  paymentName: {
-    fontSize: 16,
-    color: '#111',
-    fontWeight: '500',
-    marginRight: 8,
-  },
-  defaultBadge: {
-    backgroundColor: '#2e7d32',
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    textTransform: 'uppercase',
-  },
-
-  // Balance Card
-  balanceCard: {
-    backgroundColor: '#e8f5e8',
-    borderRadius: 12,
-    padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2e7d32',
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#2e7d32',
-    marginBottom: 12,
-  },
-  withdrawButton: {
-    flex: 1,
-    backgroundColor: '#2e7d32',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    shadowColor: '#2e7d32',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  withdrawButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Bio Styles
-  bioText: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-  },
-  bioEditContainer: {
-    gap: 8,
-  },
-  bioInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 15,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'right',
-  },
-  bioButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'flex-end',
-  },
-  bioCancel: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  bioCancelText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  bioSave: {
-    backgroundColor: '#2e7d32',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  bioSaveText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Performance Grid
-  performanceGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  performanceItem: {
-    alignItems: 'center',
-  },
-  performanceNumber: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2e7d32',
-    marginBottom: 4,
-  },
-  performanceLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-
-  // Review Cards
-  reviewCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#4caf50',
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  reviewRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  reviewStars: {
-    fontSize: 14,
-  },
-  reviewDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  reviewAuthor: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  reviewTask: {
-    fontSize: 13,
-    color: '#2e7d32',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  reviewComment: {
-    fontSize: 14,
-    color: '#333',
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-
-  // Settings Styles
-  settingsSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  settingIcon: {
-    fontSize: 20,
-    marginRight: 16,
-    width: 24,
-    textAlign: 'center',
-  },
-  settingInfo: {
-    flex: 1,
-  },
-  settingName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
-    marginBottom: 2,
-  },
-  settingDesc: {
-    fontSize: 14,
-    color: '#666',
-  },
-  settingArrow: {
-    fontSize: 18,
-    color: '#ccc',
-    fontWeight: 'bold',
-  },
-  logoutText: {
-    color: '#f44336',
-  },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalContent: {
+    padding: 60,
+    margin: 16,
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  amountInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: '#e5e5e5',
   },
-  currencySymbol: {
+  placeholderText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#2e7d32',
-    marginRight: 8,
-  },
-  amountField: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    paddingVertical: 12,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancel: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  modalConfirm: {
-    flex: 1,
-    backgroundColor: '#2e7d32',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+  placeholderSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   bottomSpacer: {
     height: 20,
