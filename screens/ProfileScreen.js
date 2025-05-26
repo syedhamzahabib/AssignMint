@@ -1,4 +1,4 @@
-// screens/ProfileScreen.js
+// screens/ProfileScreen.js - Enhanced with Expert Profile
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-// Import modular components
+// Import existing components
 import ProfileHeader from '../components/profile/ProfileHeader';
 import StatsCards from '../components/profile/StatsCards';
 import SpendingChart from '../components/profile/SpendingChart';
@@ -23,11 +23,18 @@ import { PaymentMethodsList } from '../components/profile/PaymentMethodCard';
 import WalletPreview from '../components/profile/WalletPreview';
 import SettingsSection from '../components/profile/SettingsSection';
 
+// Import new Expert components
+import ExpertHeader from '../components/profile/expert/ExpertHeader';
+import SubjectStats from '../components/profile/expert/SubjectStats';
+import RatingsSummary from '../components/profile/expert/RatingsSummary';
+import TaskHistory from '../components/profile/expert/TaskHistory';
+import BadgesPlaceholder from '../components/profile/expert/BadgesPlaceholder';
+
 // Import modals
 import StatsModal from '../components/profile/modals/StatsModal';
 import AchievementsModal from '../components/profile/modals/AchievementsModal';
 
-// Enhanced Mock API with more detailed data
+// Enhanced Mock API with Expert Profile data
 const ProfileAPI = {
   delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
   
@@ -43,7 +50,135 @@ const ProfileAPI = {
         avatar: '👩‍💼',
         memberSince: 156, // days
         
-        // Enhanced Requester stats
+        // Enhanced Expert Profile
+        expertProfile: {
+          bio: 'Math & coding expert with 5+ years of tutoring experience. I love helping students understand complex concepts!',
+          specialties: ['Math', 'Physics', 'Coding'],
+          availableHours: 'Mon-Fri 9AM-8PM PST',
+          responseTime: '< 2 hours',
+          isVerified: true,
+          portfolioItems: [
+            { type: 'sample', title: 'Calculus Problem Solutions', url: '#' },
+            { type: 'certificate', title: 'MIT Mathematics Certificate', url: '#' }
+          ]
+        },
+        
+        // Enhanced Expert Stats
+        expertStats: {
+          tasksCompleted: 47,
+          totalEarned: 1285.00,
+          avgRating: 4.8,
+          totalReviews: 42,
+          responseTime: '1.8 hours',
+          completionRate: 96,
+          currentBalance: 245.25,
+          onTimeDelivery: 98,
+          repeatClients: 18,
+          
+          // Subject breakdown
+          subjectStats: [
+            {
+              name: 'Math',
+              taskCount: 22,
+              avgRating: 4.9,
+              totalEarned: 580.00,
+              lastTask: 'Advanced Calculus Problems',
+              lastTaskDate: '2 days ago'
+            },
+            {
+              name: 'Physics',
+              taskCount: 15,
+              avgRating: 4.7,
+              totalEarned: 425.00,
+              lastTask: 'Quantum Mechanics Homework',
+              lastTaskDate: '1 week ago'
+            },
+            {
+              name: 'Coding',
+              taskCount: 10,
+              avgRating: 4.8,
+              totalEarned: 280.00,
+              lastTask: 'Python Data Analysis Script',
+              lastTaskDate: '3 days ago'
+            }
+          ],
+          
+          // Task history
+          taskHistory: [
+            {
+              id: 'exp_task_1',
+              title: 'Advanced Calculus Integration Problems',
+              subject: 'Math',
+              price: '$35',
+              requesterName: 'David Chen',
+              status: 'payment_received',
+              rating: 5,
+              completedDate: '2025-05-23',
+              feedback: 'Excellent work with clear explanations!'
+            },
+            {
+              id: 'exp_task_2',
+              title: 'Python Data Visualization Script',
+              subject: 'Coding',
+              price: '$28',
+              requesterName: 'Lisa Park',
+              status: 'completed',
+              rating: 5,
+              completedDate: '2025-05-20',
+              feedback: 'Perfect code and great documentation.'
+            },
+            {
+              id: 'exp_task_3',
+              title: 'Quantum Physics Problem Set',
+              subject: 'Physics',
+              price: '$32',
+              requesterName: 'Mike Johnson',
+              status: 'delivered',
+              completedDate: '2025-05-18'
+            },
+            {
+              id: 'exp_task_4',
+              title: 'Linear Algebra Matrix Operations',
+              subject: 'Math',
+              price: '$25',
+              requesterName: 'Emma Wilson',
+              status: 'working',
+              acceptedDate: '2025-05-24'
+            }
+          ],
+          
+          // Ratings breakdown
+          ratingsData: {
+            avgRating: 4.8,
+            totalReviews: 42,
+            individualRatings: [5,5,5,4,5,5,4,5,5,5,4,5,5,5,3,5,5,4,5,5,5,4,5,5,5,4,5,5,5,5,5,4,5,5,5,4,5,5,5,5,5,4], // Sample ratings
+            responseRate: 98,
+            onTimeDelivery: 96,
+            repeatClients: 18,
+            recentReviews: [
+              {
+                rating: 5,
+                comment: 'Amazing work! Sarah explained everything clearly and delivered early.',
+                requesterName: 'David C.',
+                date: '2 days ago',
+              },
+              {
+                rating: 5,
+                comment: 'Best expert I\'ve worked with. Will definitely hire again!',
+                requesterName: 'Lisa P.',
+                date: '5 days ago',
+              },
+              {
+                rating: 4,
+                comment: 'Good work, minor formatting issues but overall satisfied.',
+                requesterName: 'Mike J.',
+                date: '1 week ago',
+              }
+            ]
+          }
+        },
+        
+        // Existing requester stats (same as before)
         requesterStats: {
           tasksPosted: 23,
           totalSpent: 845.50,
@@ -67,19 +202,7 @@ const ProfileAPI = {
           ]
         },
         
-        // Enhanced Expert stats (for dual-role users)
-        expertStats: {
-          tasksCompleted: 8,
-          totalEarned: 285.00,
-          avgRating: 4.6,
-          totalReviews: 7,
-          responseTime: '3.2 hours',
-          completionRate: 87,
-          currentBalance: 45.25,
-          specialties: ['Math', 'Physics'],
-        },
-        
-        // User preferences and profile customization
+        // Rest of existing data...
         preferences: {
           theme: 'light',
           notifications: {
@@ -102,7 +225,6 @@ const ProfileAPI = {
           }
         },
         
-        // Enhanced favorite experts with more details
         favoriteExperts: [
           { 
             id: 'exp1', 
@@ -124,19 +246,8 @@ const ProfileAPI = {
             totalPaid: 120.00,
             avgDeliveryTime: '2.1 days'
           },
-          { 
-            id: 'exp3', 
-            name: 'Dr. James Wilson', 
-            rating: 4.8, 
-            completedTasks: 12, 
-            subject: 'Chemistry',
-            lastWorked: '2025-05-10',
-            totalPaid: 300.00,
-            avgDeliveryTime: '3.2 days'
-          },
         ],
         
-        // Enhanced payment methods
         paymentMethods: [
           { 
             id: 'pm1', 
@@ -149,15 +260,6 @@ const ProfileAPI = {
           },
           { 
             id: 'pm2', 
-            type: 'card', 
-            name: 'Mastercard •••• 8888', 
-            isDefault: false,
-            expiryMonth: 8,
-            expiryYear: 2026,
-            lastUsed: '2025-05-15'
-          },
-          { 
-            id: 'pm3', 
             type: 'paypal', 
             name: 'PayPal Account', 
             isDefault: false,
@@ -166,17 +268,14 @@ const ProfileAPI = {
           },
         ],
         
-        // Achievement system
         achievements: [
           { id: 'first_task', name: 'First Task Posted', icon: '🎯', unlocked: true, date: '2024-01-18' },
           { id: 'five_star', name: '5-Star Requester', icon: '⭐', unlocked: true, date: '2024-02-10' },
           { id: 'big_spender', name: 'Big Spender ($500+)', icon: '💰', unlocked: true, date: '2024-04-15' },
-          { id: 'loyal_customer', name: '6 Month Member', icon: '🏆', unlocked: true, date: '2024-07-15' },
           { id: 'expert_finder', name: 'Expert Finder (10+ tasks)', icon: '🔍', unlocked: true, date: '2024-03-20' },
           { id: 'speed_poster', name: 'Speed Poster', icon: '⚡', unlocked: false, date: null },
         ],
         
-        // Quick stats for dashboard
         quickStats: {
           tasksThisMonth: 5,
           avgTaskValue: 36.76,
@@ -194,6 +293,10 @@ const ProfileAPI = {
     
     if (updates.nickname && updates.nickname.length < 2) {
       throw { success: false, message: 'Nickname must be at least 2 characters' };
+    }
+    
+    if (updates.bio && updates.bio.length > 120) {
+      throw { success: false, message: 'Bio must be less than 120 characters' };
     }
     
     return { success: true, message: 'Profile updated successfully! ✨' };
@@ -242,13 +345,16 @@ const ProfileScreen = ({ navigation }) => {
         const hasExpertActivity = response.data.expertStats.tasksCompleted > 0;
         const hasRequesterActivity = response.data.requesterStats.tasksPosted > 0;
         
-        if (hasExpertActivity && !hasRequesterActivity) {
-          setActiveTab('expert');
-        } else if (hasRequesterActivity && hasExpertActivity) {
+        if (hasExpertActivity && hasRequesterActivity) {
+          // If user is active in both, default to expert if they have more expert activity
           setActiveTab(
             response.data.expertStats.tasksCompleted >= response.data.requesterStats.tasksPosted 
               ? 'expert' : 'requester'
           );
+        } else if (hasExpertActivity) {
+          setActiveTab('expert');
+        } else {
+          setActiveTab('requester');
         }
       }
     } catch (error) {
@@ -276,6 +382,21 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
+  const handleUpdateBio = async (newBio) => {
+    try {
+      const response = await ProfileAPI.updateProfile({ bio: newBio });
+      if (response.success) {
+        setProfile(prev => ({ 
+          ...prev, 
+          expertProfile: { ...prev.expertProfile, bio: newBio }
+        }));
+        Alert.alert('Success! 🎉', response.message);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const handleQuickAction = (action) => {
     switch (action) {
       case 'stats':
@@ -285,7 +406,14 @@ const ProfileScreen = ({ navigation }) => {
         setShowAchievementsModal(true);
         break;
       case 'wallet':
+      case 'earnings':
         navigation && navigation.navigate('Wallet');
+        break;
+      case 'portfolio':
+        Alert.alert('Portfolio', 'Portfolio feature coming soon! 💼');
+        break;
+      case 'reviews':
+        Alert.alert('Reviews', 'Detailed reviews feature coming soon! ⭐');
         break;
     }
   };
@@ -314,7 +442,6 @@ const ProfileScreen = ({ navigation }) => {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Create Task', onPress: () => {
-          // Navigate to PostScreen with expert pre-selected
           Alert.alert('Coming Soon!', 'Expert hiring integration coming soon!');
         }}
       ]
@@ -333,6 +460,28 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleSettingsPress = (setting) => {
     Alert.alert('Settings', `${setting} settings - Coming soon!`);
+  };
+
+  // Expert-specific handlers
+  const handleSubjectPress = (subject) => {
+    Alert.alert('Subject Details', `View detailed ${subject.name} statistics - Coming soon!`);
+  };
+
+  const handleViewAllReviews = () => {
+    Alert.alert('All Reviews', 'View all reviews feature coming soon! ⭐');
+  };
+
+  const handleTaskPress = (task) => {
+    Alert.alert('Task Details', `View details for "${task.title}" - Coming soon!`);
+  };
+
+  const handleViewAllTasks = () => {
+    Alert.alert('All Tasks', 'View all completed tasks - Coming soon!');
+  };
+
+  const handleBadgeActions = {
+    onViewAllBadges: () => Alert.alert('All Badges', 'View all badges feature coming soon! 🏆'),
+    onEarnBadges: () => Alert.alert('Earn Badges', 'Browse available tasks to earn more badges!'),
   };
 
   if (loading) {
@@ -369,8 +518,10 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={[styles.tabText, activeTab === 'requester' && styles.activeTabText]}>
           Requester ✅
         </Text>
-        <View style={styles.tabBadge}>
-          <Text style={styles.tabBadgeText}>{profile.requesterStats.tasksPosted}</Text>
+        <View style={[styles.tabBadge, activeTab === 'requester' && styles.activeTabBadge]}>
+          <Text style={[styles.tabBadgeText, activeTab === 'requester' && styles.activeTabBadgeText]}>
+            {profile.requesterStats.tasksPosted}
+          </Text>
         </View>
       </TouchableOpacity>
 
@@ -381,8 +532,10 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={[styles.tabText, activeTab === 'expert' && styles.activeTabText]}>
           Expert 🎓
         </Text>
-        <View style={styles.tabBadge}>
-          <Text style={styles.tabBadgeText}>{profile.expertStats.tasksCompleted}</Text>
+        <View style={[styles.tabBadge, activeTab === 'expert' && styles.activeTabBadge]}>
+          <Text style={[styles.tabBadgeText, activeTab === 'expert' && styles.activeTabBadgeText]}>
+            {profile.expertStats.tasksCompleted}
+          </Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -430,12 +583,35 @@ const ProfileScreen = ({ navigation }) => {
   );
 
   const renderExpertView = () => (
-    <View style={styles.expertPlaceholder}>
-      <Text style={styles.placeholderText}>Expert view coming soon! 🎓</Text>
-      <Text style={styles.placeholderSubtext}>
-        This section will show your expert profile, earnings, and completed tasks.
-      </Text>
-    </View>
+    <Animated.View style={[styles.roleContent, { opacity: fadeAnim }]}>
+      <SubjectStats 
+        subjectData={profile.expertStats.subjectStats}
+        fadeAnim={fadeAnim}
+        onSubjectPress={handleSubjectPress}
+      />
+
+      <RatingsSummary 
+        ratingsData={profile.expertStats.ratingsData}
+        onViewAllReviews={handleViewAllReviews}
+      />
+
+      <TaskHistory 
+        taskHistory={profile.expertStats.taskHistory}
+        onViewAllTasks={handleViewAllTasks}
+        onTaskPress={handleTaskPress}
+      />
+
+      <WalletPreview
+        balance={profile.expertStats.currentBalance}
+        onOpenWallet={handleWalletActions.onOpenWallet}
+        onQuickWithdraw={handleWalletActions.onQuickWithdraw}
+      />
+
+      <BadgesPlaceholder 
+        onViewAllBadges={handleBadgeActions.onViewAllBadges}
+        onEarnBadges={handleBadgeActions.onEarnBadges}
+      />
+    </Animated.View>
   );
 
   return (
@@ -452,12 +628,22 @@ const ProfileScreen = ({ navigation }) => {
           />
         }
       >
-        <ProfileHeader
-          profile={profile}
-          fadeAnim={fadeAnim}
-          onUpdateNickname={handleUpdateNickname}
-          onQuickAction={handleQuickAction}
-        />
+        {/* Dynamic Header Based on Active Tab */}
+        {activeTab === 'expert' ? (
+          <ExpertHeader
+            profile={profile}
+            fadeAnim={fadeAnim}
+            onUpdateBio={handleUpdateBio}
+            onQuickAction={handleQuickAction}
+          />
+        ) : (
+          <ProfileHeader
+            profile={profile}
+            fadeAnim={fadeAnim}
+            onUpdateNickname={handleUpdateNickname}
+            onQuickAction={handleQuickAction}
+          />
+        )}
 
         {renderTabToggle()}
         
@@ -546,6 +732,11 @@ const styles = StyleSheet.create({
     padding: 4,
     borderWidth: 1,
     borderColor: '#e5e5e5',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   tab: {
     flex: 1,
@@ -582,37 +773,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
   },
+  activeTabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#666',
   },
+  activeTabBadgeText: {
+    color: '#fff',
+  },
   roleContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-  },
-  expertPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 60,
-    margin: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e5e5',
-  },
-  placeholderText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 20,
   },
   bottomSpacer: {
     height: 20,
