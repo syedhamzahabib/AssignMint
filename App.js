@@ -1,6 +1,6 @@
 // App.js - Fixed version
 import React, { useEffect } from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { SafeAreaView, StyleSheet, View } from 'react-native';
 
 // Import components with correct paths
 import AppHeader, { HomeHeader } from './components/common/AppHeader';
@@ -133,10 +133,10 @@ const App = () => {
         {/* Header */}
         {renderHeader()}
 
-        {/* Main Content */}
-        <div style={styles.content}>
+        {/* Main Content - FIXED: Changed from <div> to <View> */}
+        <View style={styles.content}>
           {renderCurrentScreen()}
-        </div>
+        </View>
 
         {/* Bottom Tab Bar */}
         <TabBar

@@ -1,4 +1,4 @@
-// components/common/ModalManager.js - Fixed version
+// components/common/ModalManager.js - Fixed version with React import
 import React from 'react';
 import {
   View,
