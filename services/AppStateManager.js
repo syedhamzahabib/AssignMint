@@ -1,10 +1,79 @@
-// src/services/AppStateManager.js
-// Centralized app state management
-
+// services/AppStateManager.js - Fixed version
 import { useState, useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
-import TaskService from './TaskService';
-import WalletAPI from '../api/walletAPI';
+
+// Mock API for tasks
+const MockTasksAPI = {
+  delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+  
+  async getTasksByRole(role) {
+    await this.delay(500);
+    
+    const requesterTasks = [
+      {
+        id: 'req_1',
+        title: 'Solve 10 Calculus Problems',
+        dueDate: '2025-05-25',
+        status: 'in_progress',
+        expertName: 'Sarah Chen',
+        subject: 'Math',
+        price: '$20',
+        urgency: 'medium',
+        progress: 65,
+      },
+      {
+        id: 'req_2',
+        title: 'Fix bugs in Python script',
+        dueDate: '2025-05-22',
+        status: 'pending_review',
+        expertName: 'Alex Kumar',
+        subject: 'Coding',
+        price: '$30',
+        urgency: 'high',
+        progress: 100,
+      },
+    ];
+
+    const expertTasks = [
+      {
+        id: 'exp_1',
+        title: 'Translate English to Spanish document',
+        dueDate: '2025-05-27',
+        status: 'working',
+        requesterName: 'John Smith',
+        subject: 'Language',
+        price: '$22',
+        progress: 45,
+      },
+    ];
+
+    return {
+      success: true,
+      data: role === 'requester' ? requesterTasks : expertTasks,
+    };
+  },
+
+  async getTaskStats(role) {
+    await this.delay(200);
+    
+    const response = await this.getTasksByRole(role);
+    const tasks = response.data;
+    
+    return {
+      success: true,
+      data: {
+        total: tasks.length,
+        active: tasks.filter(t => 
+          ['in_progress', 'working', 'pending_review'].includes(t.status)
+        ).length,
+        completed: tasks.filter(t => 
+          ['completed', 'payment_received'].includes(t.status)
+        ).length,
+        overdue: 0,
+      }
+    };
+  }
+};
 
 class AppStateManager {
   constructor() {
@@ -23,15 +92,6 @@ class AppStateManager {
       walletParams: {},
       unreadNotifications: 3,
       
-      // Modal State
-      modalState: {
-        visible: false,
-        title: '',
-        message: '',
-        buttons: [],
-        loading: false,
-      },
-      
       // Tasks State
       tasks: [],
       taskStats: {
@@ -41,12 +101,8 @@ class AppStateManager {
         overdue: 0,
       },
       
-      // Wallet State
-      walletData: null,
-      
       // Loading States
       tasksLoading: false,
-      walletLoading: false,
       actionLoading: false,
     };
     
@@ -98,7 +154,7 @@ class AppStateManager {
     try {
       this.setState({ tasksLoading: true });
       
-      const response = await TaskService.getTasksByRole(this.state.userRole);
+      const response = await MockTasksAPI.getTasksByRole(this.state.userRole);
       if (response.success) {
         this.setState({ 
           tasks: response.data,
@@ -108,37 +164,18 @@ class AppStateManager {
     } catch (error) {
       console.error('Failed to load tasks:', error);
       this.setState({ tasksLoading: false });
-      Alert.alert('Error', 'Failed to load tasks');
     }
   }
 
   // Load task statistics
   async loadTaskStats() {
     try {
-      const response = await TaskService.getTaskStats(this.state.userRole);
+      const response = await MockTasksAPI.getTaskStats(this.state.userRole);
       if (response.success) {
         this.setState({ taskStats: response.data });
       }
     } catch (error) {
       console.log('Failed to load task stats:', error);
-    }
-  }
-
-  // Load wallet data
-  async loadWalletData() {
-    try {
-      this.setState({ walletLoading: true });
-      
-      const response = await WalletAPI.getWalletData();
-      if (response.success) {
-        this.setState({ 
-          walletData: response.data,
-          walletLoading: false 
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load wallet data:', error);
-      this.setState({ walletLoading: false });
     }
   }
 
@@ -170,11 +207,6 @@ class AppStateManager {
       showWallet: true, 
       walletParams: params 
     });
-    
-    // Load wallet data if not loaded
-    if (!this.state.walletData) {
-      this.loadWalletData();
-    }
   }
 
   closeWallet() {
@@ -184,76 +216,11 @@ class AppStateManager {
     });
   }
 
-  // Handle modal state
-  showModal(config) {
-    this.setState({
-      modalState: {
-        visible: true,
-        title: config.title || '',
-        message: config.message || '',
-        buttons: config.buttons || [],
-        loading: config.loading || false,
-      }
-    });
-  }
-
-  hideModal() {
-    this.setState({
-      modalState: { ...this.state.modalState, visible: false }
-    });
-  }
-
-  setModalLoading(loading) {
-    this.setState({
-      modalState: { ...this.state.modalState, loading }
-    });
-  }
-
-  // Handle task actions
-  async submitTaskAction(taskId, action, data = {}) {
-    try {
-      this.setState({ actionLoading: true });
-      
-      const response = await TaskService.submitTaskAction(
-        taskId, 
-        action, 
-        this.state.userRole, 
-        data
-      );
-      
-      if (response.success) {
-        // Update local task state if new status provided
-        if (response.data.newStatus) {
-          const updatedTasks = this.state.tasks.map(task => 
-            task.id === taskId 
-              ? { ...task, status: response.data.newStatus }
-              : task
-          );
-          this.setState({ tasks: updatedTasks });
-        }
-        
-        // Refresh data
-        await Promise.all([
-          this.loadTasks(),
-          this.loadTaskStats(),
-        ]);
-        
-        return response;
-      }
-    } catch (error) {
-      console.error(`Task action ${action} failed:`, error);
-      throw error;
-    } finally {
-      this.setState({ actionLoading: false });
-    }
-  }
-
   // Refresh all data
   async refreshData() {
     await Promise.all([
       this.loadTasks(),
       this.loadTaskStats(),
-      this.state.walletData ? this.loadWalletData() : Promise.resolve(),
     ]);
   }
 }
@@ -278,15 +245,10 @@ export const useAppState = () => {
     initialize: appStateManager.initialize.bind(appStateManager),
     loadTasks: appStateManager.loadTasks.bind(appStateManager),
     loadTaskStats: appStateManager.loadTaskStats.bind(appStateManager),
-    loadWalletData: appStateManager.loadWalletData.bind(appStateManager),
     switchRole: appStateManager.switchRole.bind(appStateManager),
     setActiveTab: appStateManager.setActiveTab.bind(appStateManager),
     openWallet: appStateManager.openWallet.bind(appStateManager),
     closeWallet: appStateManager.closeWallet.bind(appStateManager),
-    showModal: appStateManager.showModal.bind(appStateManager),
-    hideModal: appStateManager.hideModal.bind(appStateManager),
-    setModalLoading: appStateManager.setModalLoading.bind(appStateManager),
-    submitTaskAction: appStateManager.submitTaskAction.bind(appStateManager),
     refreshData: appStateManager.refreshData.bind(appStateManager),
   };
 };

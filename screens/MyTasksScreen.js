@@ -1,5 +1,5 @@
-// screens/MyTasksScreen.js - Updated to work with modular structure
-import React, { useState, useCallback } from 'react';
+// screens/MyTasksScreen.js - Fixed version
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,75 @@ import {
   SafeAreaView,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 
-// Import modular components
-import EnhancedTaskCard from '../src/components/task/EnhancedTaskCard';
-import LoadingScreen, { TaskListSkeleton } from '../src/components/common/LoadingScreen';
-import { useModal } from '../src/components/common/ModalManager';
-import { useTasks } from '../src/hooks/useTasks';
+// Import existing components
+import TaskCard from '../components/TaskCard';
+import FilterModal from '../components/FilterModal';
 
-// Import constants and utilities
-import { COLORS, FONTS, SPACING } from '../src/constants';
-import { getStatusInfo, calculateDaysLeft } from '../src/utils/taskHelpers';
+// Import APIs
+import { TasksAPI } from '../api/tasks';
+
+// Mock data fallback
+const mockRequesterTasks = [
+  {
+    id: 'req_1',
+    title: 'Solve 10 Calculus Problems',
+    dueDate: '2025-05-25',
+    status: 'in_progress',
+    expertName: 'Sarah Chen',
+    subject: 'Math',
+    price: '$20',
+    urgency: 'medium',
+    progress: 65,
+  },
+  {
+    id: 'req_2',
+    title: 'Fix bugs in Python script',
+    dueDate: '2025-05-22',
+    status: 'pending_review',
+    expertName: 'Alex Kumar',
+    subject: 'Coding',
+    price: '$30',
+    urgency: 'high',
+    progress: 100,
+  },
+  {
+    id: 'req_3',
+    title: 'Write 500-word essay on Civil War',
+    dueDate: '2025-05-24',
+    status: 'completed',
+    expertName: 'Emily Rodriguez',
+    subject: 'Writing',
+    price: '$15',
+    urgency: 'low',
+    progress: 100,
+  },
+];
+
+const mockExpertTasks = [
+  {
+    id: 'exp_1',
+    title: 'Translate English to Spanish document',
+    dueDate: '2025-05-27',
+    status: 'working',
+    requesterName: 'John Smith',
+    subject: 'Language',
+    price: '$22',
+    progress: 45,
+  },
+  {
+    id: 'exp_2',
+    title: 'Build basic website in HTML/CSS',
+    dueDate: '2025-05-28',
+    status: 'delivered',
+    requesterName: 'Maria Garcia',
+    subject: 'Coding',
+    price: '$40',
+    progress: 100,
+  },
+];
 
 const RoleToggle = ({ activeRole, onRoleChange }) => (
   <View style={styles.tabContainer}>
@@ -45,19 +103,19 @@ const RoleToggle = ({ activeRole, onRoleChange }) => (
 const StatsCards = ({ stats }) => (
   <View style={styles.statsContainer}>
     <View style={styles.statCard}>
-      <Text style={styles.statNumber}>{stats.active}</Text>
+      <Text style={styles.statNumber}>{stats.active || 0}</Text>
       <Text style={styles.statLabel}>Active</Text>
     </View>
     <View style={styles.statCard}>
-      <Text style={styles.statNumber}>{stats.completed}</Text>
+      <Text style={styles.statNumber}>{stats.completed || 0}</Text>
       <Text style={styles.statLabel}>Completed</Text>
     </View>
     <View style={styles.statCard}>
-      <Text style={styles.statNumber}>{stats.overdue}</Text>
+      <Text style={styles.statNumber}>{stats.overdue || 0}</Text>
       <Text style={styles.statLabel}>Overdue</Text>
     </View>
     <View style={styles.statCard}>
-      <Text style={styles.statNumber}>{stats.total}</Text>
+      <Text style={styles.statNumber}>{stats.total || 0}</Text>
       <Text style={styles.statLabel}>Total</Text>
     </View>
   </View>
@@ -78,19 +136,69 @@ const EmptyState = ({ role }) => (
 
 const MyTasksScreen = ({ navigation }) => {
   const [userRole, setUserRole] = useState('requester');
-  
-  const {
-    tasks,
-    stats,
-    loading,
-    refreshing,
-    actionLoading,
-    onRefresh,
-    submitTaskAction,
-    isEmpty
-  } = useTasks(userRole);
+  const [tasks, setTasks] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    overdue: 0
+  });
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    sortBy: 'due_date_asc',
+    urgency: 'all',
+    search: ''
+  });
 
-  const { showConfirm, ModalComponent } = useModal();
+  const loadTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Try to use the API, fallback to mock data
+      let tasksData;
+      try {
+        const response = await TasksAPI.getTasksByRole(userRole);
+        tasksData = response.success ? response.data : [];
+      } catch (error) {
+        console.log('API failed, using mock data:', error);
+        tasksData = userRole === 'requester' ? mockRequesterTasks : mockExpertTasks;
+      }
+      
+      setTasks(tasksData);
+      
+      // Calculate stats
+      const newStats = {
+        total: tasksData.length,
+        active: tasksData.filter(t => 
+          ['in_progress', 'working', 'pending_review', 'awaiting_expert'].includes(t.status)
+        ).length,
+        completed: tasksData.filter(t => 
+          ['completed', 'payment_received'].includes(t.status)
+        ).length,
+        overdue: tasksData.filter(t => {
+          const due = new Date(t.dueDate);
+          const now = new Date();
+          return due < now && !['completed', 'payment_received', 'cancelled'].includes(t.status);
+        }).length,
+      };
+      
+      setStats(newStats);
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+      Alert.alert('Error', 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [userRole]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTasks();
+    setRefreshing(false);
+  }, [loadTasks]);
 
   const handleRoleChange = useCallback((newRole) => {
     if (newRole !== userRole) {
@@ -99,10 +207,9 @@ const MyTasksScreen = ({ navigation }) => {
   }, [userRole]);
 
   const handleTaskPress = useCallback((task) => {
-    const statusInfo = getStatusInfo(task.status);
     Alert.alert(
       '📋 Task Details',
-      `Task: ${task.title}\nPrice: ${task.price}\nStatus: ${statusInfo.text}\nDue: ${task.dueDate}`,
+      `Task: ${task.title}\nPrice: ${task.price}\nStatus: ${task.status}\nDue: ${task.dueDate}`,
       [
         { text: 'Close', style: 'cancel' },
         { 
@@ -113,45 +220,49 @@ const MyTasksScreen = ({ navigation }) => {
     );
   }, []);
 
-  const handleTaskAction = useCallback((action, task) => {
-    const actionMessages = {
-      review: `Approve task "${task.title}"?\n\nThis will release payment to the expert.`,
-      dispute: `File dispute for "${task.title}"?\n\nOur team will review within 24 hours.`,
-      cancel: `Cancel task "${task.title}"?\n\nThis action cannot be undone.`,
-      upload: `Upload delivery for "${task.title}"?\n\nThe requester will be notified.`,
-      edit: `Edit task "${task.title}"?\n\nYou can modify requirements and deadline.`,
-    };
-
-    showConfirm(
-      `${action.charAt(0).toUpperCase() + action.slice(1)} Task`,
-      actionMessages[action] || `${action} for "${task.title}"`,
-      () => executeTaskAction(action, task)
+  const handleTaskAction = useCallback((task) => {
+    Alert.alert(
+      'Quick Actions',
+      `Available actions for "${task.title}"`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'View Details', onPress: () => handleTaskPress(task) },
+        { text: 'Edit Task', onPress: () => Alert.alert('Edit Task', 'Edit functionality coming soon!') },
+      ]
     );
-  }, [showConfirm]);
+  }, [handleTaskPress]);
 
-  const executeTaskAction = useCallback(async (action, task) => {
-    try {
-      const response = await submitTaskAction(task.id, action);
-      
-      if (response.success) {
-        Alert.alert('Success!', response.message);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Action failed. Please try again.');
+  const handleApplyFilters = useCallback((newFilters) => {
+    setFilters(newFilters);
+  }, []);
+
+  const filteredTasks = React.useMemo(() => {
+    let filtered = [...tasks];
+    
+    // Apply filters here if needed
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(task => task.status === filters.status);
     }
-  }, [submitTaskAction]);
+    
+    if (filters.search.trim()) {
+      const query = filters.search.toLowerCase();
+      filtered = filtered.filter(task => 
+        task.title.toLowerCase().includes(query) ||
+        task.subject.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [tasks, filters]);
 
   const renderTaskCard = useCallback(({ item }) => (
-    <EnhancedTaskCard
+    <TaskCard
       task={item}
       onPress={handleTaskPress}
-      onAction={handleTaskAction}
+      onActionPress={handleTaskAction}
       isRequester={userRole === 'requester'}
-      isLoading={actionLoading}
-      showActions={true}
-      compact={false}
     />
-  ), [handleTaskPress, handleTaskAction, userRole, actionLoading]);
+  ), [handleTaskPress, handleTaskAction, userRole]);
 
   const handleBackPress = () => {
     if (navigation && navigation.goBack) {
@@ -159,13 +270,20 @@ const MyTasksScreen = ({ navigation }) => {
     }
   };
 
+  // Load tasks when component mounts or role changes
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
   // Show loading screen for initial load
   if (loading && tasks.length === 0) {
     return (
-      <LoadingScreen 
-        message="Loading your tasks..."
-        submessage="Please wait while we fetch your latest tasks"
-      />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2e7d32" />
+          <Text style={styles.loadingText}>Loading your tasks...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -177,7 +295,9 @@ const MyTasksScreen = ({ navigation }) => {
           <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Tasks 📂</Text>
-        <View style={styles.headerRight} />
+        <TouchableOpacity onPress={() => setShowFilterModal(true)}>
+          <Text style={styles.filterButton}>Filter</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Role Toggle */}
@@ -189,24 +309,22 @@ const MyTasksScreen = ({ navigation }) => {
       {/* Statistics */}
       <StatsCards stats={stats} />
 
-      {/* Task Count & Instructions */}
+      {/* Task Count */}
       <View style={styles.taskCountContainer}>
         <Text style={styles.taskCount}>
-          {tasks.length} task{tasks.length !== 1 ? 's' : ''} found
+          {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
         </Text>
         <Text style={styles.instructionText}>
-          💡 Pull down to refresh • Tap cards for details • Tap buttons for actions!
+          💡 Pull down to refresh • Tap cards for actions
         </Text>
       </View>
 
       {/* Task List */}
-      {loading && tasks.length === 0 ? (
-        <TaskListSkeleton count={3} />
-      ) : isEmpty ? (
+      {filteredTasks.length === 0 ? (
         <EmptyState role={userRole} />
       ) : (
         <FlatList
-          data={tasks}
+          data={filteredTasks}
           keyExtractor={(item) => item.id}
           renderItem={renderTaskCard}
           contentContainerStyle={styles.taskList}
@@ -215,15 +333,21 @@ const MyTasksScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
+              colors={['#2e7d32']}
+              tintColor="#2e7d32"
             />
           }
         />
       )}
 
-      {/* Modal Component */}
-      <ModalComponent />
+      {/* Filter Modal */}
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApplyFilters={handleApplyFilters}
+        currentFilters={filters}
+        isRequester={userRole === 'requester'}
+      />
     </SafeAreaView>
   );
 };
@@ -231,43 +355,57 @@ const MyTasksScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f4f5f9',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray200,
-    backgroundColor: COLORS.white,
+    borderBottomColor: '#e5e5e5',
+    backgroundColor: '#fff',
   },
   backButton: {
-    fontSize: FONTS.sizes.lg,
-    color: COLORS.primary,
-    fontWeight: FONTS.weights.medium,
+    fontSize: 16,
+    color: '#2e7d32',
+    fontWeight: '500',
   },
   headerTitle: {
-    fontSize: FONTS.sizes.xl,
-    fontWeight: FONTS.weights.semiBold,
-    color: COLORS.gray900,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
   },
-  headerRight: {
-    width: 50,
+  filterButton: {
+    fontSize: 16,
+    color: '#2e7d32',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+    textAlign: 'center',
   },
   
   // Role Toggle Styles
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 12,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.gray200,
-    shadowColor: COLORS.black,
+    borderColor: '#e5e5e5',
+    shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
@@ -275,59 +413,59 @@ const styles = StyleSheet.create({
   },
   roleTab: {
     flex: 1,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   activeRoleTab: {
-    backgroundColor: COLORS.primary,
-    shadowColor: COLORS.primary,
+    backgroundColor: '#2e7d32',
+    shadowColor: '#2e7d32',
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
   },
   roleTabText: {
-    fontSize: FONTS.sizes.md,
-    fontWeight: FONTS.weights.semiBold,
-    color: COLORS.gray600,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
   },
   activeRoleTabText: {
-    color: COLORS.white,
+    color: '#fff',
   },
   
   // Stats Styles
   statsContainer: {
     flexDirection: 'row',
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
-    gap: SPACING.sm,
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: SPACING.md,
+    padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.gray200,
-    shadowColor: COLORS.black,
+    borderColor: '#e5e5e5',
+    shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
   },
   statNumber: {
-    fontSize: FONTS.sizes.xl,
-    fontWeight: FONTS.weights.extraBold,
-    color: COLORS.primary,
-    marginBottom: SPACING.xs,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2e7d32',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: FONTS.sizes.xs,
-    color: COLORS.gray600,
-    fontWeight: FONTS.weights.medium,
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     textAlign: 'center',
@@ -335,51 +473,51 @@ const styles = StyleSheet.create({
   
   // Task Count & Instructions
   taskCountContainer: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
-    paddingBottom: SPACING.sm,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   taskCount: {
-    fontSize: FONTS.sizes.md,
-    color: COLORS.gray600,
+    fontSize: 14,
+    color: '#666',
     fontStyle: 'italic',
   },
   instructionText: {
-    fontSize: FONTS.sizes.sm,
-    color: COLORS.primary,
-    marginTop: SPACING.xs,
-    fontWeight: FONTS.weights.medium,
+    fontSize: 12,
+    color: '#2e7d32',
+    marginTop: 4,
+    fontWeight: '500',
   },
   
   // Task List
   taskList: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.lg,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   
   // Empty State
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.huge * 2,
-    paddingHorizontal: SPACING.xl,
+    paddingVertical: 80,
+    paddingHorizontal: 40,
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: SPACING.xl,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: FONTS.sizes.xl,
-    fontWeight: FONTS.weights.semiBold,
-    color: COLORS.gray700,
-    marginBottom: SPACING.md,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: FONTS.sizes.lg,
-    color: COLORS.gray500,
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
 });
 

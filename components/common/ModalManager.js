@@ -1,6 +1,4 @@
-// src/components/common/ModalManager.js
-// Centralized modal management component
-
+// components/common/ModalManager.js - Fixed version
 import React from 'react';
 import {
   View,

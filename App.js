@@ -1,24 +1,24 @@
-// App.js - Refactored with modular components
+// App.js - Fixed version
 import React, { useEffect } from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 
-// Import modular components
-import AppHeader, { HomeHeader } from './src/components/common/AppHeader';
-import TabBar from './src/components/common/TabBar';
-import ErrorBoundary from './src/components/common/ErrorBoundary';
-import { useAppState } from './src/services/AppStateManager';
-import { useModal } from './src/components/common/ModalManager';
+// Import components with correct paths
+import AppHeader, { HomeHeader } from './components/common/AppHeader';
+import TabBar from './components/common/TabBar';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { useAppState } from './services/AppStateManager';
+import { useModal } from './components/common/ModalManager';
 
-// Import screens
+// Import screens with correct paths
 import HomeScreen from './screens/HomeScreen';
 import PostScreen from './screens/PostScreen';
-import MyTasksScreen from './src/screens/MyTasksScreen';
+import MyTasksScreen from './screens/MyTasksScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import WalletScreen from './screens/WalletScreen';
 
 // Import constants
-import { COLORS, SCREEN_NAMES } from './src/constants';
+import { COLORS, SCREEN_NAMES } from './constants';
 
 const App = () => {
   const {
