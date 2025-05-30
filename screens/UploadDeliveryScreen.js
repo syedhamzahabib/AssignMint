@@ -1,4 +1,4 @@
-// screens/UploadDeliveryScreen.js
+// screens/UploadDeliveryScreen.js - Complete Enhanced Version
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -13,7 +13,6 @@ import {
   Animated,
 } from 'react-native';
 import { TasksAPI } from '../api/tasks';
-import { getSubjectColor, formatDate, calculateDaysLeft } from '../utils/taskHelpers';
 
 const UploadDeliveryScreen = ({ route, navigation }) => {
   const { task } = route.params || {};
@@ -37,6 +36,14 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
   if (!task) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>📤 Upload Delivery</Text>
+          <View style={styles.headerRight} />
+        </View>
+        
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>❌</Text>
           <Text style={styles.errorTitle}>No Task Found</Text>
@@ -49,14 +56,53 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
     );
   }
 
+  const calculateDaysLeft = (dueDate) => {
+    if (!dueDate) return { text: 'No due date', isNormal: true };
+    
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = due - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return { text: `${Math.abs(diffDays)} days overdue`, isOverdue: true };
+    if (diffDays === 0) return { text: 'Due today', isUrgent: true };
+    if (diffDays === 1) return { text: '1 day left', isUrgent: true };
+    return { text: `${diffDays} days left`, isNormal: true };
+  };
+
+  const getSubjectColor = (subject) => {
+    const colors = {
+      'Math': '#3f51b5',
+      'Coding': '#00796b',
+      'Writing': '#d84315',
+      'Design': '#6a1b9a',
+      'Language': '#00838f',
+      'Chemistry': '#f57f17',
+      'Physics': '#1976d2',
+      'Business': '#388e3c',
+      'Psychology': '#7b1fa2'
+    };
+    return colors[subject] || '#9e9e9e';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'No date';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
   const daysLeftInfo = calculateDaysLeft(task.dueDate);
   const subjectColor = getSubjectColor(task.subject);
 
-  // Mock file picker function
+  // Enhanced mock file picker with categories
   const handleFilePicker = () => {
     Alert.alert(
       '📁 Select Files',
-      'Choose how you want to add files to your delivery:',
+      'Choose the type of files you want to add:',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -68,74 +114,110 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
           onPress: () => addMockFiles('code')
         },
         { 
-          text: '🖼️ Images', 
+          text: '🖼️ Images/Screenshots', 
           onPress: () => addMockFiles('image')
+        },
+        { 
+          text: '📊 Data/Spreadsheets', 
+          onPress: () => addMockFiles('data')
         },
       ]
     );
   };
 
-  // Add mock files based on type
+  // Enhanced mock files with realistic names
   const addMockFiles = (type) => {
-    const mockFiles = {
+    const mockFileTypes = {
       document: [
         { 
           id: `doc_${Date.now()}`, 
-          name: 'completed_work.pdf', 
+          name: `${task.subject.toLowerCase()}_solution.pdf`, 
           size: '2.4 MB', 
           type: 'pdf',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Main Deliverable'
         },
         { 
           id: `doc_${Date.now() + 1}`, 
-          name: 'additional_notes.docx', 
+          name: 'explanation_and_notes.docx', 
           size: '856 KB', 
           type: 'document',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Supporting Document'
         }
       ],
       code: [
         { 
           id: `code_${Date.now()}`, 
-          name: 'solution.py', 
+          name: task.subject === 'Coding' ? 'main_solution.py' : 'analysis_script.py', 
           size: '12.3 KB', 
           type: 'python',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Source Code'
         },
         { 
           id: `code_${Date.now() + 1}`, 
           name: 'requirements.txt', 
           size: '1.2 KB', 
           type: 'text',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Dependencies'
+        },
+        { 
+          id: `code_${Date.now() + 2}`, 
+          name: 'README.md', 
+          size: '3.8 KB', 
+          type: 'markdown',
+          uploadTime: new Date().toISOString(),
+          category: 'Documentation'
         }
       ],
       image: [
         { 
           id: `img_${Date.now()}`, 
-          name: 'diagram.png', 
+          name: 'solution_diagram.png', 
           size: '1.8 MB', 
           type: 'image',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Diagram'
         },
         { 
           id: `img_${Date.now() + 1}`, 
-          name: 'screenshot.jpg', 
+          name: 'process_screenshot.jpg', 
           size: '945 KB', 
           type: 'image',
-          uploadTime: new Date().toISOString()
+          uploadTime: new Date().toISOString(),
+          category: 'Screenshot'
+        }
+      ],
+      data: [
+        { 
+          id: `data_${Date.now()}`, 
+          name: 'analysis_results.xlsx', 
+          size: '584 KB', 
+          type: 'excel',
+          uploadTime: new Date().toISOString(),
+          category: 'Data Analysis'
+        },
+        { 
+          id: `data_${Date.now() + 1}`, 
+          name: 'raw_data.csv', 
+          size: '234 KB', 
+          type: 'csv',
+          uploadTime: new Date().toISOString(),
+          category: 'Raw Data'
         }
       ]
     };
 
-    const newFiles = mockFiles[type] || mockFiles.document;
+    const newFiles = mockFileTypes[type] || mockFileTypes.document;
     setDeliveryFiles(prev => [...prev, ...newFiles]);
     
     // Show upload animation
     simulateUploadProgress();
   };
 
-  // Simulate file upload progress
+  // Enhanced upload progress simulation
   const simulateUploadProgress = () => {
     setUploadProgress(0);
     const interval = setInterval(() => {
@@ -144,16 +226,17 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
           clearInterval(interval);
           return 100;
         }
-        return prev + 10;
+        return prev + Math.random() * 15 + 5; // Variable progress speed
       });
-    }, 100);
+    }, 150);
   };
 
-  // Remove file from delivery
+  // Remove file with confirmation
   const removeFile = (fileId) => {
+    const file = deliveryFiles.find(f => f.id === fileId);
     Alert.alert(
       'Remove File',
-      'Are you sure you want to remove this file from your delivery?',
+      `Remove "${file.name}" from your delivery?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -167,31 +250,57 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
     );
   };
 
-  // Get file icon based on type
+  // Enhanced file icons
   const getFileIcon = (type) => {
     const icons = {
       'pdf': '📄',
       'document': '📝',
       'python': '🐍',
       'text': '📃',
+      'markdown': '📋',
       'image': '🖼️',
+      'excel': '📊',
+      'csv': '📈',
       'code': '💻'
     };
     return icons[type] || '📎';
   };
 
+  // Predefined message templates
+  const messageTemplates = [
+    {
+      id: 'standard',
+      title: '✅ Standard Completion',
+      message: `Hi ${task.requesterName}! I've completed your ${task.subject} task as requested. All requirements have been thoroughly addressed and the work is ready for your review. Please find the deliverable files attached. Let me know if you need any clarifications or have questions about the solution!`
+    },
+    {
+      id: 'early',
+      title: '⚡ Early Delivery',
+      message: `Great news! I've completed your task ahead of schedule. Everything has been thoroughly tested and documented. The solution exceeds the basic requirements and includes additional insights that might be helpful. Please review the attached files and let me know your feedback!`
+    },
+    {
+      id: 'revision',
+      title: '🔄 Revision Submitted',
+      message: `Thank you for your feedback! I've carefully addressed all the points you mentioned and made the necessary revisions. The updated files are attached and ready for your review. I believe this version better meets your expectations. Please let me know if any further adjustments are needed.`
+    }
+  ];
+
   // Handle delivery submission
   const handleSubmitDelivery = async () => {
-    // Validation
+    // Enhanced validation
     if (deliveryFiles.length === 0) {
-      Alert.alert('No Files Selected', 'Please add at least one file to your delivery.');
+      Alert.alert(
+        'No Files Selected', 
+        'Please add at least one file to your delivery before submitting.',
+        [{ text: 'Add Files', onPress: handleFilePicker }]
+      );
       return;
     }
 
     if (deliveryMessage.trim().length < 10) {
       Alert.alert(
-        'Delivery Message',
-        'Please add a brief message about your delivery (at least 10 characters).',
+        'Delivery Message Required',
+        'A brief message helps the requester understand your delivery. Please add at least 10 characters.',
         [
           { text: 'Skip Message', onPress: () => submitDelivery() },
           { text: 'Add Message', style: 'cancel' }
@@ -212,6 +321,7 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
         message: deliveryMessage.trim() || 'Delivery completed as requested.',
         deliveryDate: new Date().toISOString(),
         totalFiles: deliveryFiles.length,
+        fileCategories: [...new Set(deliveryFiles.map(f => f.category))],
       };
 
       console.log('📤 Submitting delivery:', deliveryData);
@@ -224,17 +334,17 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       );
 
       if (response.success) {
-        // Show success with detailed info
+        // Enhanced success message
         Alert.alert(
           '🎉 Delivery Uploaded Successfully!',
-          `Your work for "${task.title}" has been delivered to ${task.requesterName}.\n\n✅ ${deliveryFiles.length} file(s) uploaded\n📝 Delivery message sent\n⏰ Delivered on time\n\nThe requester will be notified and can now review your work.`,
+          `Your work for "${task.title}" has been delivered!\n\n✅ ${deliveryFiles.length} file(s) uploaded\n📝 Delivery message sent\n⏰ Delivered ${daysLeftInfo.isOverdue ? 'late' : daysLeftInfo.isUrgent ? 'on time' : 'early'}\n\n${task.requesterName} will be notified and can now review your work.`,
           [
             {
               text: 'View My Tasks',
               onPress: () => {
                 navigation.reset({
                   index: 0,
-                  routes: [{ name: 'MyTasks' }],
+                  routes: [{ name: 'Home' }],
                 });
               }
             },
@@ -325,13 +435,13 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
             <View style={styles.progressContainer}>
               <Text style={styles.progressLabel}>Uploading files...</Text>
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
+                <View style={[styles.progressFill, { width: `${Math.min(uploadProgress, 100)}%` }]} />
               </View>
-              <Text style={styles.progressText}>{uploadProgress}%</Text>
+              <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
             </View>
           )}
 
-          {/* File Upload Button */}
+          {/* Enhanced Upload Button */}
           <TouchableOpacity 
             style={[styles.uploadButton, deliveryFiles.length > 0 && styles.uploadButtonActive]}
             onPress={handleFilePicker}
@@ -343,11 +453,11 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
               {deliveryFiles.length > 0 ? 'Add More Files' : 'Select Files to Upload'}
             </Text>
             <Text style={styles.uploadButtonSubtext}>
-              Documents, code, images, etc.
+              Documents, code, images, data files
             </Text>
           </TouchableOpacity>
 
-          {/* Selected Files List */}
+          {/* Selected Files List with Categories */}
           {deliveryFiles.length > 0 && (
             <View style={styles.filesContainer}>
               <Text style={styles.filesHeader}>
@@ -376,10 +486,13 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
                   
                   <View style={styles.fileInfo}>
                     <Text style={styles.fileName}>{file.name}</Text>
-                    <Text style={styles.fileSize}>{file.size}</Text>
-                    <Text style={styles.fileTime}>
-                      Added {new Date(file.uploadTime).toLocaleTimeString()}
-                    </Text>
+                    <Text style={styles.fileCategory}>{file.category}</Text>
+                    <View style={styles.fileMetadata}>
+                      <Text style={styles.fileSize}>{file.size}</Text>
+                      <Text style={styles.fileTime}>
+                        • Added {new Date(file.uploadTime).toLocaleTimeString()}
+                      </Text>
+                    </View>
                   </View>
                   
                   <TouchableOpacity 
@@ -394,17 +507,17 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
           )}
         </Animated.View>
 
-        {/* Delivery Message Section */}
+        {/* Enhanced Message Section */}
         <Animated.View style={[styles.messageSection, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>💬 Delivery Message</Text>
           <Text style={styles.sectionSubtitle}>
-            Add a message about your completed work (optional but recommended)
+            Add a message about your completed work
           </Text>
           
           <View style={styles.messageInputContainer}>
             <TextInput
               style={styles.messageInput}
-              placeholder="Hi! I've completed your task as requested. Please find the files attached. All requirements have been addressed and the work is ready for your review. Let me know if you need any clarifications!"
+              placeholder="Add a professional message about your delivery..."
               placeholderTextColor="#999"
               multiline
               numberOfLines={5}
@@ -423,30 +536,22 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Message Templates */}
+          {/* Enhanced Message Templates */}
           <View style={styles.templatesContainer}>
             <Text style={styles.templatesTitle}>💡 Quick Templates:</Text>
-            <View style={styles.templatesRow}>
-              <TouchableOpacity 
-                style={styles.templateButton}
-                onPress={() => setDeliveryMessage('Task completed as requested. All files are attached and ready for review. Please let me know if you need any revisions!')}
-              >
-                <Text style={styles.templateButtonText}>✅ Standard</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.templateButton}
-                onPress={() => setDeliveryMessage('I\'ve completed your task ahead of schedule! Everything is thoroughly tested and documented. Please review and let me know your feedback.')}
-              >
-                <Text style={styles.templateButtonText}>⚡ Early</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.templateButton}
-                onPress={() => setDeliveryMessage('Revision completed! I\'ve addressed all the feedback points you mentioned. The updated files are attached and ready for your review.')}
-              >
-                <Text style={styles.templateButtonText}>🔄 Revision</Text>
-              </TouchableOpacity>
+            <View style={styles.templatesGrid}>
+              {messageTemplates.map((template) => (
+                <TouchableOpacity 
+                  key={template.id}
+                  style={styles.templateCard}
+                  onPress={() => setDeliveryMessage(template.message)}
+                >
+                  <Text style={styles.templateTitle}>{template.title}</Text>
+                  <Text style={styles.templatePreview} numberOfLines={2}>
+                    {template.message.substring(0, 80)}...
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </Animated.View>
@@ -455,11 +560,11 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* Fixed Bottom Submit Button */}
+      {/* Enhanced Fixed Bottom Submit Button */}
       <Animated.View style={[styles.submitContainer, { opacity: fadeAnim }]}>
         <View style={styles.submitSummary}>
           <Text style={styles.submitSummaryText}>
-            📁 {deliveryFiles.length} file(s) ready • 💬 {deliveryMessage.length > 0 ? 'Message added' : 'No message'}
+            📁 {deliveryFiles.length} file(s) • 💬 {deliveryMessage.length > 10 ? 'Message ready' : 'Add message'} • {daysLeftInfo.isOverdue ? '⚠️ Late' : daysLeftInfo.isUrgent ? '⏰ Due today' : '✅ On time'}
           </Text>
         </View>
         
@@ -688,6 +793,9 @@ const styles = StyleSheet.create({
   // Progress
   progressContainer: {
     marginBottom: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
   },
   progressLabel: {
     fontSize: 14,
@@ -789,10 +897,21 @@ const styles = StyleSheet.create({
     color: '#111',
     marginBottom: 2,
   },
+  fileCategory: {
+    fontSize: 11,
+    color: '#2e7d32',
+    fontWeight: '500',
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  fileMetadata: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   fileSize: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 2,
   },
   fileTime: {
     fontSize: 11,
@@ -854,7 +973,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // Templates
+  // Enhanced Templates
   templatesContainer: {
     marginTop: 8,
   },
@@ -864,24 +983,26 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
-  templatesRow: {
-    flexDirection: 'row',
+  templatesGrid: {
     gap: 8,
   },
-  templateButton: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
+  templateCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#e9ecef',
   },
-  templateButtonText: {
+  templateTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  templatePreview: {
     fontSize: 12,
     color: '#666',
-    fontWeight: '600',
+    lineHeight: 16,
   },
 
   // Submit Section

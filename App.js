@@ -1,5 +1,5 @@
-// App.js - Fixed version
-import React, { useEffect } from 'react';
+// App.js - Updated with proper navigation stack
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
 
 // Import components with correct paths
@@ -8,7 +8,6 @@ import TabBar from './components/common/TabBar';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { useAppState } from './services/AppStateManager';
 import { useModal } from './components/common/ModalManager';
-import UploadDeliveryScreen from './screens/UploadDeliveryScreen';
 
 // Import screens with correct paths
 import HomeScreen from './screens/HomeScreen';
@@ -17,6 +16,8 @@ import MyTasksScreen from './screens/MyTasksScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import WalletScreen from './screens/WalletScreen';
+import TaskDetailsScreen from './screens/TaskDetailsScreen';
+import UploadDeliveryScreen from './screens/UploadDeliveryScreen';
 
 // Import constants
 import { COLORS, SCREEN_NAMES } from './constants';
@@ -39,20 +40,44 @@ const App = () => {
   } = useAppState();
 
   const { ModalComponent } = useModal();
+  
+  // Navigation stack state
+  const [navigationStack, setNavigationStack] = useState([{ name: 'Home', params: {} }]);
+  
+  // Get current screen from navigation stack
+  const currentScreen = navigationStack[navigationStack.length - 1];
 
-  // Navigation helper for legacy screens
+  // Navigation helper
   const navigation = {
     navigate: (screenName, params = {}) => {
       console.log(`🧭 Navigating to: ${screenName}`, params);
+      
       if (screenName === 'Wallet') {
         openWallet(params);
+        return;
       }
+      
+      // Add to navigation stack
+      setNavigationStack(prev => [...prev, { name: screenName, params }]);
     },
+    
     goBack: () => {
       if (showWallet) {
         closeWallet();
-      } else {
+        return;
+      }
+      
+      if (navigationStack.length > 1) {
+        setNavigationStack(prev => prev.slice(0, -1));
         console.log('🧭 Going back');
+      }
+    },
+    
+    reset: (routes) => {
+      if (routes && routes.routes) {
+        setNavigationStack(routes.routes);
+      } else {
+        setNavigationStack([{ name: 'Home', params: {} }]);
       }
     }
   };
@@ -65,6 +90,8 @@ const App = () => {
   }, [isInitialized, initialize]);
 
   const handleTabPress = (tabId) => {
+    // Reset navigation stack when switching tabs
+    setNavigationStack([{ name: 'Home', params: {} }]);
     setActiveTab(tabId);
   };
 
@@ -83,36 +110,56 @@ const App = () => {
       );
     }
 
-    // Render main screens
-    switch (activeTab) {
-      case SCREEN_NAMES.HOME:
-      case 'home':
-        return <HomeScreen navigation={navigation} />;
+    // Handle navigation stack screens
+    switch (currentScreen.name) {
+      case 'TaskDetails':
+        return (
+          <TaskDetailsScreen 
+            navigation={navigation} 
+            route={{ params: currentScreen.params }} 
+          />
+        );
         
-      case SCREEN_NAMES.POST_TASK:
-      case 'post':
-        return <PostScreen navigation={navigation} />;
-        
-      case SCREEN_NAMES.MY_TASKS:
-      case 'tasks':
-        return <MyTasksScreen navigation={navigation} />;
-        
-      case SCREEN_NAMES.NOTIFICATIONS:
-      case 'notifications':
-        return <NotificationsScreen navigation={navigation} />;
-        
-      case SCREEN_NAMES.PROFILE:
-      case 'profile':
-        return <ProfileScreen navigation={navigation} />;
+      case 'UploadDelivery':
+        return (
+          <UploadDeliveryScreen 
+            navigation={navigation} 
+            route={{ params: currentScreen.params }} 
+          />
+        );
         
       default:
-        return <HomeScreen navigation={navigation} />;
+        // Render main tab screens
+        switch (activeTab) {
+          case SCREEN_NAMES.HOME:
+          case 'home':
+            return <HomeScreen navigation={navigation} />;
+            
+          case SCREEN_NAMES.POST_TASK:
+          case 'post':
+            return <PostScreen navigation={navigation} />;
+            
+          case SCREEN_NAMES.MY_TASKS:
+          case 'tasks':
+            return <MyTasksScreen navigation={navigation} />;
+            
+          case SCREEN_NAMES.NOTIFICATIONS:
+          case 'notifications':
+            return <NotificationsScreen navigation={navigation} />;
+            
+          case SCREEN_NAMES.PROFILE:
+          case 'profile':
+            return <ProfileScreen navigation={navigation} />;
+            
+          default:
+            return <HomeScreen navigation={navigation} />;
+        }
     }
   };
 
   const renderHeader = () => {
-    if (showWallet) {
-      return null; // WalletScreen handles its own header
+    if (showWallet || currentScreen.name !== 'Home') {
+      return null; // Screens handle their own headers
     }
 
     switch (activeTab) {
@@ -128,24 +175,32 @@ const App = () => {
     }
   };
 
+  const shouldShowTabBar = () => {
+    // Hide tab bar for certain screens
+    const hideTabBarScreens = ['TaskDetails', 'UploadDelivery'];
+    return !showWallet && !hideTabBarScreens.includes(currentScreen.name);
+  };
+
   return (
     <ErrorBoundary>
       <SafeAreaView style={styles.container}>
         {/* Header */}
         {renderHeader()}
 
-        {/* Main Content - FIXED: Changed from <div> to <View> */}
+        {/* Main Content */}
         <View style={styles.content}>
           {renderCurrentScreen()}
         </View>
 
         {/* Bottom Tab Bar */}
-        <TabBar
-          activeTab={activeTab}
-          onTabPress={handleTabPress}
-          unreadNotifications={unreadNotifications}
-          showWallet={showWallet}
-        />
+        {shouldShowTabBar() && (
+          <TabBar
+            activeTab={activeTab}
+            onTabPress={handleTabPress}
+            unreadNotifications={unreadNotifications}
+            showWallet={showWallet}
+          />
+        )}
 
         {/* Global Modal */}
         <ModalComponent />
