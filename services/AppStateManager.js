@@ -1,5 +1,5 @@
-// services/AppStateManager.js - Fixed version
-import { useState, useCallback, useEffect } from 'react';
+// services/AppStateManager.js - Fixed version with proper dependency management
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 
 // Mock API for tasks
@@ -84,7 +84,7 @@ class AppStateManager {
       
       // User State
       currentUser: null,
-      userRole: 'requester', // 'requester' or 'expert'
+      userRole: 'requester',
       
       // UI State
       activeTab: 'home',
@@ -106,34 +106,61 @@ class AppStateManager {
       actionLoading: false,
     };
     
-    this.listeners = [];
+    this.listeners = new Set(); // Use Set instead of array for better performance
+    this.initializePromise = null; // Prevent multiple initialization calls
   }
 
   // Subscribe to state changes
   subscribe(listener) {
-    this.listeners.push(listener);
+    this.listeners.add(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners.delete(listener);
     };
   }
 
   // Update state and notify listeners
   setState(updates) {
+    // Prevent unnecessary updates if state hasn't changed
+    const hasChanges = Object.keys(updates).some(
+      key => this.state[key] !== updates[key]
+    );
+    
+    if (!hasChanges) return;
+    
     this.state = { ...this.state, ...updates };
-    this.listeners.forEach(listener => listener(this.state));
+    this.listeners.forEach(listener => {
+      try {
+        listener(this.state);
+      } catch (error) {
+        console.error('Error in state listener:', error);
+      }
+    });
   }
 
   // Get current state
   getState() {
-    return this.state;
+    return { ...this.state }; // Return a copy to prevent mutations
   }
 
-  // Initialize app
-  async initialize() {
+  // Initialize app - prevent multiple calls
+  initialize = async () => {
+    if (this.initializePromise) {
+      return this.initializePromise;
+    }
+
+    this.initializePromise = this._doInitialize();
+    return this.initializePromise;
+  }
+
+  async _doInitialize() {
     try {
+      if (this.state.isInitialized) {
+        return; // Already initialized
+      }
+
       this.setState({ isLoading: true });
       
-      // Load initial data
+      // Load initial data in parallel
       await Promise.all([
         this.loadTasks(),
         this.loadTaskStats(),
@@ -145,12 +172,17 @@ class AppStateManager {
       });
     } catch (error) {
       console.error('App initialization failed:', error);
-      this.setState({ isLoading: false });
+      this.setState({ 
+        isLoading: false,
+        isInitialized: false // Allow retry
+      });
+    } finally {
+      this.initializePromise = null; // Reset for potential retry
     }
   }
 
   // Load tasks
-  async loadTasks() {
+  loadTasks = async () => {
     try {
       this.setState({ tasksLoading: true });
       
@@ -168,7 +200,7 @@ class AppStateManager {
   }
 
   // Load task statistics
-  async loadTaskStats() {
+  loadTaskStats = async () => {
     try {
       const response = await MockTasksAPI.getTaskStats(this.state.userRole);
       if (response.success) {
@@ -180,21 +212,27 @@ class AppStateManager {
   }
 
   // Switch user role
-  async switchRole(newRole) {
-    if (newRole !== this.state.userRole) {
-      this.setState({ userRole: newRole });
-      await Promise.all([
-        this.loadTasks(),
-        this.loadTaskStats(),
-      ]);
+  switchRole = async (newRole) => {
+    if (newRole === this.state.userRole) {
+      return; // No change needed
     }
+    
+    this.setState({ userRole: newRole });
+    await Promise.all([
+      this.loadTasks(),
+      this.loadTaskStats(),
+    ]);
   }
 
   // Handle tab change
-  setActiveTab(tabName) {
+  setActiveTab = (tabName) => {
+    if (tabName === this.state.activeTab) {
+      return; // No change needed
+    }
+    
     this.setState({ activeTab: tabName });
     
-    // Load data based on active tab
+    // Load data based on active tab if needed
     if (tabName === 'tasks' && this.state.tasks.length === 0) {
       this.loadTasks();
       this.loadTaskStats();
@@ -202,14 +240,14 @@ class AppStateManager {
   }
 
   // Handle wallet navigation
-  openWallet(params = {}) {
+  openWallet = (params = {}) => {
     this.setState({ 
       showWallet: true, 
       walletParams: params 
     });
   }
 
-  closeWallet() {
+  closeWallet = () => {
     this.setState({ 
       showWallet: false, 
       walletParams: {} 
@@ -217,7 +255,7 @@ class AppStateManager {
   }
 
   // Refresh all data
-  async refreshData() {
+  refreshData = async () => {
     await Promise.all([
       this.loadTasks(),
       this.loadTaskStats(),
@@ -228,28 +266,43 @@ class AppStateManager {
 // Create singleton instance
 const appStateManager = new AppStateManager();
 
-// React hook for using app state
+// React hook for using app state with proper memoization
 export const useAppState = () => {
-  const [state, setState] = useState(appStateManager.getState());
+  const [state, setState] = useState(() => appStateManager.getState());
+  const stateRef = useRef(state);
+  
+  // Update ref when state changes to prevent stale closures
+  stateRef.current = state;
 
   useEffect(() => {
-    const unsubscribe = appStateManager.subscribe(setState);
+    const unsubscribe = appStateManager.subscribe((newState) => {
+      // Only update if state actually changed
+      if (stateRef.current !== newState) {
+        setState(newState);
+      }
+    });
+    
     return unsubscribe;
-  }, []);
+  }, []); // Empty dependency array is correct here
+
+  // Memoize action functions to prevent unnecessary re-renders
+  const actions = useRef({
+    initialize: appStateManager.initialize,
+    loadTasks: appStateManager.loadTasks,
+    loadTaskStats: appStateManager.loadTaskStats,
+    switchRole: appStateManager.switchRole,
+    setActiveTab: appStateManager.setActiveTab,
+    openWallet: appStateManager.openWallet,
+    closeWallet: appStateManager.closeWallet,
+    refreshData: appStateManager.refreshData,
+  });
 
   return {
     // State
     ...state,
     
-    // Actions
-    initialize: appStateManager.initialize.bind(appStateManager),
-    loadTasks: appStateManager.loadTasks.bind(appStateManager),
-    loadTaskStats: appStateManager.loadTaskStats.bind(appStateManager),
-    switchRole: appStateManager.switchRole.bind(appStateManager),
-    setActiveTab: appStateManager.setActiveTab.bind(appStateManager),
-    openWallet: appStateManager.openWallet.bind(appStateManager),
-    closeWallet: appStateManager.closeWallet.bind(appStateManager),
-    refreshData: appStateManager.refreshData.bind(appStateManager),
+    // Actions (memoized)
+    ...actions.current,
   };
 };
 
