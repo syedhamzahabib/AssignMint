@@ -116,18 +116,9 @@ const TaskDetailsScreen = ({ route, navigation }) => {
         break;
         
       case 'upload':
-        showCustomModal(
-          '🟩 Upload Delivery',
-          `Task: "${task.title}"\nRequester: ${task.requesterName || 'N/A'}\n\nReady to upload your completed work?\n\n✓ Make sure all requirements are met\n✓ Files are properly formatted\n✓ Work is complete and reviewed`,
-          [
-            { text: 'Not Ready', style: 'cancel', onPress: () => setShowModal(false) },
-            { 
-              text: 'Upload Files 📁', 
-              style: 'primary',
-              onPress: () => submitAction(action)
-            }
-          ]
-        );
+        // Navigate to Upload Delivery Screen instead of showing modal
+        setShowModal(false);
+        navigation.navigate('UploadDelivery', { task });
         break;
         
       case 'edit':
@@ -329,7 +320,7 @@ const TaskDetailsScreen = ({ route, navigation }) => {
           return null;
       }
     } else {
-      // Expert actions
+      // Expert actions - UPDATED to navigate to UploadDeliveryScreen
       switch (task.status) {
         case 'working':
           return (

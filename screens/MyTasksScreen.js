@@ -1,4 +1,4 @@
-// screens/MyTasksScreen.js - Fixed version
+// screens/MyTasksScreen.js - Updated with UploadDelivery navigation
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -207,30 +207,63 @@ const MyTasksScreen = ({ navigation }) => {
   }, [userRole]);
 
   const handleTaskPress = useCallback((task) => {
-    Alert.alert(
-      '📋 Task Details',
-      `Task: ${task.title}\nPrice: ${task.price}\nStatus: ${task.status}\nDue: ${task.dueDate}`,
-      [
-        { text: 'Close', style: 'cancel' },
-        { 
-          text: 'View Details 👀', 
-          onPress: () => Alert.alert('Details', 'Full task details would open here!') 
-        }
-      ]
-    );
-  }, []);
+    // Navigate to TaskDetailsScreen with the task data
+    navigation.navigate('TaskDetails', {
+      taskId: task.id,
+      role: userRole,
+      task: task
+    });
+  }, [navigation, userRole]);
 
+  // UPDATED: Enhanced task action handler with Upload Delivery option
   const handleTaskAction = useCallback((task) => {
+    const actions = [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: '👀 View Details', 
+        onPress: () => handleTaskPress(task) 
+      }
+    ];
+
+    // Add role-specific actions
+    if (userRole === 'expert') {
+      // Expert-specific actions
+      if (task.status === 'working') {
+        actions.splice(1, 0, {
+          text: '📤 Upload Delivery',
+          onPress: () => navigation.navigate('UploadDelivery', { task })
+        });
+      } else if (task.status === 'revision_requested') {
+        actions.splice(1, 0, {
+          text: '🔄 Submit Revision',
+          onPress: () => navigation.navigate('UploadDelivery', { task })
+        });
+      }
+    } else {
+      // Requester-specific actions
+      if (task.status === 'pending_review') {
+        actions.splice(1, 0, {
+          text: '✅ Review & Approve',
+          onPress: () => Alert.alert('Review Task', `Review functionality for "${task.title}" would open here!`)
+        });
+        actions.splice(2, 0, {
+          text: '🚩 Dispute',
+          onPress: () => Alert.alert('Dispute Task', `Dispute functionality for "${task.title}" would open here!`)
+        });
+      } else if (task.status === 'awaiting_expert') {
+        actions.splice(1, 0, {
+          text: '✏️ Edit Task',
+          onPress: () => Alert.alert('Edit Task', `Edit functionality for "${task.title}" coming soon!`)
+        });
+      }
+    }
+
     Alert.alert(
-      'Quick Actions',
-      `Available actions for "${task.title}"`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'View Details', onPress: () => handleTaskPress(task) },
-        { text: 'Edit Task', onPress: () => Alert.alert('Edit Task', 'Edit functionality coming soon!') },
-      ]
+      `🎯 ${task.title}`,
+      `Status: ${task.status}\nPrice: ${task.price}\nDue: ${task.dueDate}\n\nSelect an action:`,
+      actions
     );
-  }, [handleTaskPress]);
+  }, [handleTaskPress, navigation, userRole]);
 
   const handleApplyFilters = useCallback((newFilters) => {
     setFilters(newFilters);

@@ -8,6 +8,7 @@ import TabBar from './components/common/TabBar';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { useAppState } from './services/AppStateManager';
 import { useModal } from './components/common/ModalManager';
+import UploadDeliveryScreen from './screens/UploadDeliveryScreen';
 
 // Import screens with correct paths
 import HomeScreen from './screens/HomeScreen';

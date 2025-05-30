@@ -1,3 +1,4 @@
+// components/TaskActionModal.js - Enhanced with UploadDelivery navigation
 import React, { useState } from 'react';
 import {
   View,
@@ -18,7 +19,8 @@ const TaskActionModal = ({
   task, 
   actionType, 
   isRequester = true,
-  onActionComplete 
+  onActionComplete,
+  navigation // Added navigation prop for Upload Delivery
 }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -60,15 +62,14 @@ const TaskActionModal = ({
           break;
           
         case 'upload':
-          if (formData.files.length === 0) {
-            Alert.alert('Required', 'Please select files to upload');
-            return;
+          // UPDATED: Navigate to UploadDeliveryScreen instead of handling upload here
+          onClose();
+          if (navigation) {
+            navigation.navigate('UploadDelivery', { task });
+          } else {
+            Alert.alert('Navigate to Upload', 'This would open the Upload Delivery screen');
           }
-          actionData = {
-            files: formData.files,
-            message: formData.message
-          };
-          break;
+          return;
           
         default:
           actionData = formData;
@@ -187,37 +188,46 @@ const TaskActionModal = ({
     </View>
   );
 
+  // UPDATED: New upload content with navigation to dedicated screen
   const renderUploadContent = () => (
     <View style={styles.actionContent}>
       <Text style={styles.contentTitle}>Upload Delivery</Text>
       <Text style={styles.contentSubtitle}>
-        Upload your completed work files
+        Ready to submit your completed work?
       </Text>
 
-      <View style={styles.fieldSection}>
-        <Text style={styles.fieldLabel}>Files *</Text>
-        <TouchableOpacity style={styles.fileUploadButton}>
-          <Text style={styles.fileUploadIcon}>📁</Text>
-          <Text style={styles.fileUploadText}>Select files to upload</Text>
-        </TouchableOpacity>
-        {formData.files.length > 0 && (
-          <Text style={styles.filesCount}>{formData.files.length} file(s) selected</Text>
-        )}
+      <View style={styles.uploadPreviewCard}>
+        <Text style={styles.uploadPreviewIcon}>📤</Text>
+        <Text style={styles.uploadPreviewTitle}>Enhanced Upload Experience</Text>
+        <Text style={styles.uploadPreviewText}>
+          We'll take you to our full upload screen where you can:
+        </Text>
+        
+        <View style={styles.featuresList}>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>📁</Text>
+            <Text style={styles.featureText}>Upload multiple files with drag & drop</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>💬</Text>
+            <Text style={styles.featureText}>Add detailed delivery messages</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>📋</Text>
+            <Text style={styles.featureText}>Preview files before submission</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>⚡</Text>
+            <Text style={styles.featureText}>Quick message templates</Text>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.fieldSection}>
-        <Text style={styles.fieldLabel}>Message (Optional)</Text>
-        <TextInput
-          style={styles.textArea}
-          placeholder="Add a message about your delivery..."
-          placeholderTextColor="#999"
-          multiline
-          numberOfLines={3}
-          value={formData.message}
-          onChangeText={(text) => setFormData(prev => ({ ...prev, message: text }))}
-          maxLength={300}
-        />
-        <Text style={styles.charCount}>{formData.message.length}/300</Text>
+      <View style={styles.uploadNotice}>
+        <Text style={styles.uploadNoticeIcon}>💡</Text>
+        <Text style={styles.uploadNoticeText}>
+          This will open our enhanced upload screen for the best delivery experience.
+        </Text>
       </View>
     </View>
   );
@@ -246,7 +256,7 @@ const TaskActionModal = ({
     switch (actionType) {
       case 'review': return 'Approve & Submit Review';
       case 'dispute': return 'Submit Dispute';
-      case 'upload': return 'Upload Files';
+      case 'upload': return 'Open Upload Screen';
       default: return 'Submit';
     }
   };
@@ -445,12 +455,81 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-  filesCount: {
-    fontSize: 14,
+  
+  // New Upload Preview Styles
+  uploadPreviewCard: {
+    backgroundColor: '#f8fff8',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e8f5e8',
+    marginBottom: 16,
+  },
+  uploadPreviewIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  uploadPreviewTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     color: '#2e7d32',
-    marginTop: 8,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  uploadPreviewText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  featuresList: {
+    width: '100%',
+    gap: 12,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e8f5e8',
+  },
+  featureIcon: {
+    fontSize: 16,
+    marginRight: 12,
+    width: 20,
+    textAlign: 'center',
+  },
+  featureText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
     fontWeight: '500',
   },
+  uploadNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196f3',
+  },
+  uploadNoticeIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  uploadNoticeText: {
+    fontSize: 13,
+    color: '#1976d2',
+    flex: 1,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  
   footer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
