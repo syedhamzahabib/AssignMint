@@ -486,15 +486,14 @@ const ProfileScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2e7d32" />
-          <Text style={styles.loadingText}>Loading your profile...</Text>
-        </View>
-      </SafeAreaView>
+      <LoadingScreen 
+        message="Loading your profile..."
+        submessage="Getting user data, stats, and preferences ready..."
+        showAnimation={true}
+        size="large"
+      />
     );
   }
-
   if (!profile) {
     return (
       <SafeAreaView style={styles.container}>

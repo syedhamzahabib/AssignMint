@@ -1,4 +1,4 @@
-// screens/PostScreen.js - Enhanced with Firestore integration
+// screens/PostScreen.js - Enhanced with Firestore integration and submission loading overlay
 import React, { useState } from 'react';
 import {
   View,
@@ -18,10 +18,16 @@ import StepTwo from './PostTaskSteps/StepTwo';
 import StepThree from './PostTaskSteps/StepThree';
 import StepFour from './PostTaskSteps/StepFour';
 import StepFive from './PostTaskSteps/StepFive';
+import ErrorBoundary from '../components/common/ErrorBoundary';
+
+// Note: Ensure you have a LoadingScreen component available in your project.
+// If not already present, add it or adjust the import path accordingly.
+import LoadingScreen from '../components/common/LoadingScreen';
 
 const PostScreen = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSubmissionLoading, setShowSubmissionLoading] = useState(false);
   const [formData, setFormData] = useState({
     subject: '',
     title: '',
@@ -35,7 +41,7 @@ const PostScreen = ({ navigation }) => {
     matchingType: 'manual', // Default to manual for this implementation
     budget: '',
     paymentMethod: null,
-    
+
     // Additional fields for Firestore
     urgency: 'medium',
     estimatedHours: null,
@@ -54,7 +60,7 @@ const PostScreen = ({ navigation }) => {
 
   const validateStep = (step) => {
     console.log('Validating step:', step, 'with data:', formData);
-    
+
     switch (step) {
       case 1:
         if (!formData.subject || !formData.subject.trim()) {
@@ -70,7 +76,7 @@ const PostScreen = ({ navigation }) => {
           return false;
         }
         return true;
-        
+
       case 2:
         if (!formData.description || !formData.description.trim()) {
           Alert.alert('Required Field', 'Please enter a task description');
@@ -81,25 +87,25 @@ const PostScreen = ({ navigation }) => {
           return false;
         }
         return true;
-        
+
       case 3:
         // AI level is always valid (has default)
         return true;
-        
+
       case 4:
         if (!formData.deadline) {
           Alert.alert('Required Field', 'Please select a deadline');
           return false;
         }
-        
-        // Validate deadline is in future
+
+        // Validate deadline is in the future
         const deadlineDate = new Date(formData.deadline);
         const now = new Date();
         if (deadlineDate <= now) {
           Alert.alert('Invalid Deadline', 'Deadline must be in the future');
           return false;
         }
-        
+
         if (!formData.budget || !formData.budget.trim()) {
           Alert.alert('Required Field', 'Please enter your budget');
           return false;
@@ -118,14 +124,14 @@ const PostScreen = ({ navigation }) => {
           return false;
         }
         return true;
-        
+
       case 5:
         if (!formData.paymentMethod) {
           Alert.alert('Required Field', 'Please select a payment method');
           return false;
         }
         return true;
-        
+
       default:
         return true;
     }
@@ -157,10 +163,11 @@ const PostScreen = ({ navigation }) => {
 
   const handleSubmit = async () => {
     console.log('Final form submission:', formData);
-    
+
     try {
       setIsSubmitting(true);
-      
+      setShowSubmissionLoading(true);
+
       // Prepare task data for Firestore
       const taskData = {
         ...formData,
@@ -171,11 +178,12 @@ const PostScreen = ({ navigation }) => {
         // Set matching type
         matchingType: formData.matchingType || 'manual',
       };
-      
+
       // Submit to Firestore
       const response = await firestoreService.createTask(taskData);
-      
+
       if (response.success) {
+        setShowSubmissionLoading(false);
         // Show success message
         Alert.alert(
           '🎉 Task Posted Successfully!',
@@ -196,19 +204,20 @@ const PostScreen = ({ navigation }) => {
         );
       }
     } catch (error) {
+      setShowSubmissionLoading(false);
       console.error('Error submitting task:', error);
       Alert.alert(
         '❌ Submission Error',
         error.message || 'There was an error posting your task. Please check your information and try again.',
         [
           { text: 'Try Again' },
-          { 
-            text: 'Save Draft', 
+          {
+            text: 'Save Draft',
             onPress: () => {
               // TODO: Implement draft saving
               Alert.alert('Draft Saved', 'Your task has been saved as a draft.');
-            }
-          }
+            },
+          },
         ]
       );
     } finally {
@@ -220,7 +229,7 @@ const PostScreen = ({ navigation }) => {
   const generateTags = (title, description, subject) => {
     const allText = `${title} ${description}`.toLowerCase();
     const tags = new Set([subject.toLowerCase()]);
-    
+
     // Common academic keywords
     const keywords = [
       'homework', 'assignment', 'project', 'essay', 'report', 'analysis',
@@ -228,13 +237,13 @@ const PostScreen = ({ navigation }) => {
       'statistics', 'physics', 'chemistry', 'biology', 'writing', 'design',
       'urgent', 'help', 'tutor', 'solve', 'debug', 'fix', 'create', 'build'
     ];
-    
+
     keywords.forEach(keyword => {
       if (allText.includes(keyword)) {
         tags.add(keyword);
       }
     });
-    
+
     return Array.from(tags).slice(0, 8); // Limit to 8 tags
   };
 
@@ -265,7 +274,7 @@ const PostScreen = ({ navigation }) => {
       <View style={styles.progressBar}>
         <View style={[styles.progressFill, { width: `${(currentStep / 5) * 100}%` }]} />
       </View>
-      
+
       {/* Step labels */}
       <View style={styles.progressLabels}>
         <Text style={[styles.progressLabel, currentStep >= 1 && styles.progressLabelActive]}>
@@ -319,7 +328,7 @@ const PostScreen = ({ navigation }) => {
           <Text style={styles.errorTitle}>⚠️ Error Loading Step</Text>
           <Text style={styles.errorText}>Step {currentStep} failed to load</Text>
           <Text style={styles.errorDetails}>{error.toString()}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.errorButton}
             onPress={() => setCurrentStep(1)}
           >
@@ -331,33 +340,48 @@ const PostScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Progress Indicator */}
-      {renderProgressIndicator()}
-      
-      {/* Debug Info - Remove in production */}
-      <View style={styles.debugInfo}>
-        <Text style={styles.debugText}>🔧 Debug: Step {currentStep}</Text>
-        <Text style={styles.debugText}>
-          📝 {formData.subject || 'No subject'} • {formData.title || 'No title'}
-        </Text>
-        <Text style={styles.debugText}>
-          💰 ${formData.budget || '0'} • ⏰ {formData.deadline || 'No deadline'}
-        </Text>
-        <Text style={styles.debugText}>
-          📄 {formData.description.length || 0} chars • 🤖 {formData.aiLevel}
-          {formData.aiLevel === 'partial' ? ` (${formData.aiPercentage}%)` : ''}
-        </Text>
-        <Text style={styles.debugText}>
-          🎯 Matching: {formData.matchingType} • 🔥 {formData.urgency}
-        </Text>
-      </View>
-      
-      {/* Main Content */}
-      <View style={styles.content}>
-        {renderCurrentStep()}
-      </View>
-    </SafeAreaView>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
+        {/* Progress Indicator */}
+        {renderProgressIndicator()}
+
+        {/* Debug Info - Remove in production */}
+        <View style={styles.debugInfo}>
+          <Text style={styles.debugText}>🔧 Debug: Step {currentStep}</Text>
+          <Text style={styles.debugText}>
+            📝 {formData.subject || 'No subject'} • {formData.title || 'No title'}
+          </Text>
+          <Text style={styles.debugText}>
+            💰 ${formData.budget || '0'} • ⏰ {formData.deadline || 'No deadline'}
+          </Text>
+          <Text style={styles.debugText}>
+            📄 {formData.description.length || 0} chars • 🤖 {formData.aiLevel}
+            {formData.aiLevel === 'partial' ? ` (${formData.aiPercentage}%)` : ''}
+          </Text>
+          <Text style={styles.debugText}>
+            🎯 Matching: {formData.matchingType} • 🔥 {formData.urgency}
+          </Text>
+        </View>
+
+        {/* Main Content */}
+        <View style={styles.content}>
+          {renderCurrentStep()}
+        </View>
+
+        {/* Submission Loading Overlay */}
+        {showSubmissionLoading && (
+          <View style={styles.submissionLoadingOverlay}>
+            <LoadingScreen
+              message="Posting your task..."
+              submessage="Creating assignment and notifying experts..."
+              fullScreen={false}
+              showAnimation={true}
+              style={styles.submissionLoadingContent}
+            />
+          </View>
+        )}
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 };
 
@@ -461,6 +485,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  submissionLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  submissionLoadingContent: {
+    backgroundColor: 'transparent',
   },
 });
 

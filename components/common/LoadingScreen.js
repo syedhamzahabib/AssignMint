@@ -283,3 +283,127 @@ const styles = StyleSheet.create({
 });
 
 export default LoadingScreen;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add this new component at the bottom of the file:
+//
+// Action loading component for buttons and forms
+export const ActionLoadingOverlay = ({ 
+  visible, 
+  message = 'Processing...', 
+  submessage,
+  progress,
+  onCancel 
+}) => {
+  if (!visible) return null;
+
+  return (
+    <View style={actionStyles.overlay}>
+      <View style={actionStyles.container}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        
+        <Text style={actionStyles.message}>{message}</Text>
+        
+        {submessage && (
+          <Text style={actionStyles.submessage}>{submessage}</Text>
+        )}
+        
+        {typeof progress === 'number' && (
+          <View style={actionStyles.progressContainer}>
+            <View style={actionStyles.progressBar}>
+              <View 
+                style={[
+                  actionStyles.progressFill, 
+                  { width: `${Math.min(100, Math.max(0, progress))}%` }
+                ]} 
+              />
+            </View>
+            <Text style={actionStyles.progressText}>{Math.round(progress)}%</Text>
+          </View>
+        )}
+        
+        {onCancel && (
+          <TouchableOpacity style={actionStyles.cancelButton} onPress={onCancel}>
+            <Text style={actionStyles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+};
+
+const actionStyles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  container: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    minWidth: 200,
+    maxWidth: 300,
+    shadowColor: COLORS.black,
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  message: {
+    fontSize: FONTS.sizes.lg,
+    fontWeight: FONTS.weights.semiBold,
+    color: COLORS.gray800,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  submessage: {
+    fontSize: FONTS.sizes.md,
+    color: COLORS.gray600,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: SPACING.lg,
+  },
+  progressContainer: {
+    width: '100%',
+    marginBottom: SPACING.lg,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: COLORS.gray200,
+    borderRadius: 4,
+    marginBottom: SPACING.sm,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: FONTS.sizes.sm,
+    color: COLORS.gray600,
+    textAlign: 'center',
+    fontWeight: FONTS.weights.medium,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.gray100,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.gray300,
+  },
+  cancelButtonText: {
+    color: COLORS.gray700,
+    fontSize: FONTS.sizes.md,
+    fontWeight: FONTS.weights.medium,
+  },
+});

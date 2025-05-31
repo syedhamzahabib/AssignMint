@@ -236,10 +236,22 @@ const TaskDetailsScreen = ({ route, navigation }) => {
 
   // Handle loading state
   if (loading) {
+    const loadingMessage = task 
+      ? `Loading details for "${task.title}"...` 
+      : "Loading task details...";
+    
+    const loadingSubmessage = isManualMatch 
+      ? "Getting manual match assignment details..."
+      : role === 'expert' 
+        ? "Loading your assigned task information..."
+        : "Loading your posted task status...";
+
     return (
       <LoadingScreen 
-        message="Loading task details..."
-        submessage="Getting task information ready"
+        message={loadingMessage}
+        submessage={loadingSubmessage}
+        showAnimation={true}
+        size="large"
       />
     );
   }

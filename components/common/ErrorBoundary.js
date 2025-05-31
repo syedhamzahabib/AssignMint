@@ -28,7 +28,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
@@ -46,11 +46,12 @@ class ErrorBoundary extends React.Component {
         timestamp: new Date().toISOString(),
       });
     }
+    // You could send this data to a remote logging service here
   };
 
   handleRetry = () => {
     this.setState({ isRetrying: true });
-    
+
     setTimeout(() => {
       this.setState({
         hasError: false,
@@ -59,6 +60,50 @@ class ErrorBoundary extends React.Component {
         isRetrying: false,
       });
     }, 500);
+  };
+
+  // Added: Method for screen-specific error handling
+  renderScreenError = () => {
+    const { 
+      title = 'Something went wrong', 
+      subtitle = 'This screen encountered an error. Please try again.',
+      showRetry = true,
+      onRetry,
+      onGoHome,
+    } = this.props;
+
+    return (
+      <View style={[styles.container, styles.screenErrorContainer]}>
+        <View style={styles.screenErrorContent}>
+          <Text style={styles.errorIcon}>😵</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+
+          <View style={styles.buttonContainer}>
+            {showRetry && (
+              <TouchableOpacity 
+                style={[styles.button, styles.primaryButton]}
+                onPress={onRetry || this.handleRetry}
+                disabled={this.state.isRetrying}
+              >
+                <Text style={[styles.buttonText, styles.primaryButtonText]}>
+                  {this.state.isRetrying ? 'Retrying...' : '🔄 Try Again'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.button, styles.secondaryButton]}
+              onPress={onGoHome || (() => console.log('Go to Home'))}
+            >
+              <Text style={[styles.buttonText, styles.secondaryButtonText]}>
+                🏠 Go Home
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   render() {
@@ -80,7 +125,7 @@ class ErrorBoundary extends React.Component {
             <Text style={styles.errorIcon}>😵</Text>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
-            
+
             <View style={styles.buttonContainer}>
               <TouchableOpacity 
                 style={[styles.button, styles.primaryButton]}
@@ -91,7 +136,7 @@ class ErrorBoundary extends React.Component {
                   {this.state.isRetrying ? 'Retrying...' : '🔄 Try Again'}
                 </Text>
               </TouchableOpacity>
-              
+
               {onGoHome && (
                 <TouchableOpacity 
                   style={[styles.button, styles.secondaryButton]}
@@ -103,7 +148,7 @@ class ErrorBoundary extends React.Component {
                 </TouchableOpacity>
               )}
             </View>
-            
+
             {showDetails && this.state.error && (
               <View style={styles.errorDetails}>
                 <Text style={styles.detailsTitle}>Error Details (Dev Mode)</Text>
@@ -240,6 +285,20 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     fontFamily: 'monospace',
   },
+
+  // Screen-specific error styles (added)
+  screenErrorContainer: {
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  screenErrorContent: {
+    alignItems: 'center',
+    padding: SPACING.xl,
+    maxWidth: 300,
+  },
+
+  // Fallback styles (unchanged)
   fallbackContainer: {
     flex: 1,
     justifyContent: 'center',

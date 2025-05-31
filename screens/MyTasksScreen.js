@@ -1,4 +1,4 @@
-// screens/MyTasksScreen.js - Updated with TaskActionModal integration
+// screens/MyTasksScreen.js - Updated with ErrorBoundary and TaskActionModal integration
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -21,6 +21,7 @@ import EnhancedTaskCard from '../components/task/EnhancedTaskCard';
 import FilterModal from '../components/FilterModal';
 import LoadingScreen from '../components/common/LoadingScreen';
 import TaskActionModal from '../components/TaskActionModal'; // ADDED: TaskActionModal
+import ErrorBoundary from '../components/common/ErrorBoundary'; // ADDED: ErrorBoundary
 
 const RoleToggle = ({ activeRole, onRoleChange, requesterStats, expertStats }) => (
   <View style={styles.tabContainer}>
@@ -444,106 +445,114 @@ const MyTasksScreen = ({ navigation }) => {
     return (
       <LoadingScreen 
         message={`Loading your ${userRole} tasks...`}
-        submessage="Getting your assignment data ready"
+        submessage={
+          userRole === 'requester' 
+            ? "Fetching posted tasks and expert assignments..."
+            : "Finding your accepted tasks and delivery status..."
+        }
+        showAnimation={true}
+        size="large"
       />
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Tasks 📂</Text>
-        <TouchableOpacity onPress={() => setShowFilterModal(true)}>
-          <Text style={styles.filterButton}>Filter</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Role Toggle */}
-      <RoleToggle 
-        activeRole={userRole} 
-        onRoleChange={handleRoleChange}
-        requesterStats={requesterStats}
-        expertStats={expertStats}
-      />
-
-      {/* Statistics */}
-      <StatsCards stats={stats} role={userRole} />
-
-      {/* Task Count and Instructions */}
-      <View style={styles.taskCountContainer}>
-        <Text style={styles.taskCount}>
-          {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
-          {tasks.length !== filteredTasks.length && ` (${tasks.length} total)`}
-        </Text>
-        <Text style={styles.instructionText}>
-          💡 Pull down to refresh • Tap cards for actions
-          {userRole === 'requester' && ' • Green status = Expert assigned!'}
-        </Text>
-      </View>
-
-      {/* Error Message */}
-      {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-          <TouchableOpacity onPress={() => loadTasks()} style={styles.retryButton}>
-            <Text style={styles.retryText}>Retry</Text>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleBackPress}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Tasks 📂</Text>
+          <TouchableOpacity onPress={() => setShowFilterModal(true)}>
+            <Text style={styles.filterButton}>Filter</Text>
           </TouchableOpacity>
         </View>
-      )}
 
-      {/* Task List or Empty State */}
-      {filteredTasks.length === 0 ? (
-        <EmptyState 
-          role={userRole}
-          onCreateTask={handleCreateTask}
-          onBrowseTasks={handleBrowseTasks}
+        {/* Role Toggle */}
+        <RoleToggle 
+          activeRole={userRole} 
+          onRoleChange={handleRoleChange}
+          requesterStats={requesterStats}
+          expertStats={expertStats}
         />
-      ) : (
-        <FlatList
-          data={filteredTasks}
-          keyExtractor={(item) => item.id}
-          renderItem={renderTaskCard}
-          contentContainerStyle={styles.taskList}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#2e7d32']}
-              tintColor="#2e7d32"
-            />
-          }
+
+        {/* Statistics */}
+        <StatsCards stats={stats} role={userRole} />
+
+        {/* Task Count and Instructions */}
+        <View style={styles.taskCountContainer}>
+          <Text style={styles.taskCount}>
+            {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
+            {tasks.length !== filteredTasks.length && ` (${tasks.length} total)`}
+          </Text>
+          <Text style={styles.instructionText}>
+            💡 Pull down to refresh • Tap cards for actions
+            {userRole === 'requester' && ' • Green status = Expert assigned!'}
+          </Text>
+        </View>
+
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>⚠️ {error}</Text>
+            <TouchableOpacity onPress={() => loadTasks()} style={styles.retryButton}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Task List or Empty State */}
+        {filteredTasks.length === 0 ? (
+          <EmptyState 
+            role={userRole}
+            onCreateTask={handleCreateTask}
+            onBrowseTasks={handleBrowseTasks}
+          />
+        ) : (
+          <FlatList
+            data={filteredTasks}
+            keyExtractor={(item) => item.id}
+            renderItem={renderTaskCard}
+            contentContainerStyle={styles.taskList}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#2e7d32']}
+                tintColor="#2e7d32"
+              />
+            }
+          />
+        )}
+
+        {/* Filter Modal */}
+        <FilterModal
+          visible={showFilterModal}
+          onClose={() => setShowFilterModal(false)}
+          onApplyFilters={handleApplyFilters}
+          currentFilters={filters}
+          isRequester={userRole === 'requester'}
         />
-      )}
 
-      {/* Filter Modal */}
-      <FilterModal
-        visible={showFilterModal}
-        onClose={() => setShowFilterModal(false)}
-        onApplyFilters={handleApplyFilters}
-        currentFilters={filters}
-        isRequester={userRole === 'requester'}
-      />
-
-      {/* ADDED: Task Action Modal */}
-      <TaskActionModal
-        visible={showActionModal}
-        onClose={() => {
-          setShowActionModal(false);
-          setSelectedTaskForAction(null);
-          setActionType(null);
-        }}
-        task={selectedTaskForAction}
-        actionType={actionType}
-        isRequester={userRole === 'requester'}
-        onActionComplete={handleActionComplete}
-        navigation={navigation}
-      />
-    </SafeAreaView>
+        {/* ADDED: Task Action Modal */}
+        <TaskActionModal
+          visible={showActionModal}
+          onClose={() => {
+            setShowActionModal(false);
+            setSelectedTaskForAction(null);
+            setActionType(null);
+          }}
+          task={selectedTaskForAction}
+          actionType={actionType}
+          isRequester={userRole === 'requester'}
+          onActionComplete={handleActionComplete}
+          navigation={navigation}
+        />
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 };
 

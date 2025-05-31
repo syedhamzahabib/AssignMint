@@ -1,4 +1,5 @@
-// screens/UploadDeliveryScreen.js - Enhanced with Manual Match integration
+// screens/UploadDeliveryScreen.js - Enhanced with Manual Match integration and ActionLoadingOverlay
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -16,6 +17,8 @@ import {
 import { TasksAPI } from '../api/tasks';
 import firestoreService from '../services/FirestoreService';
 import FilePicker from '../utils/FilePicker';
+import ErrorBoundary from '../components/common/ErrorBoundary';
+import LoadingScreen, { ActionLoadingOverlay } from '../components/common/LoadingScreen';
 
 const UploadDeliveryScreen = ({ route, navigation }) => {
   const { task } = route.params || {};
@@ -553,289 +556,315 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
   } : undefined;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>📤 Upload Delivery</Text>
-        <View style={styles.headerRight} />
-      </View>
+    <ErrorBoundary>
+      <SafeAreaView style={styles.container}>
+        {/* Enhanced Loading overlay with progress */}
+        {uploading && (
+          <ActionLoadingOverlay
+            visible={uploading}
+            message="Uploading delivery..."
+            submessage={`Submitting ${deliveryFiles.length} file(s) and delivery message...`}
+            progress={uploadProgress}
+            onCancel={() => {
+              Alert.alert(
+                'Cancel Upload',
+                'Are you sure you want to cancel the upload?',
+                [
+                  { text: 'Continue Upload', style: 'cancel' },
+                  { 
+                    text: 'Cancel', 
+                    style: 'destructive',
+                    onPress: () => setUploading(false)
+                  }
+                ]
+              );
+            }}
+          />
+        )}
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Enhanced Task Information Card for Manual Match */}
-        <Animated.View style={[styles.taskInfoCard, { opacity: fadeAnim }]}>
-          <View style={styles.taskHeader}>
-            <View style={styles.taskTitleContainer}>
-              <Text style={styles.taskTitle} numberOfLines={2}>
-                {taskDetails.title}
-              </Text>
-              <View style={styles.badgeContainer}>
-                <View style={[styles.subjectBadge, { backgroundColor: subjectColor }]}>
-                  <Text style={styles.subjectText}>{taskDetails.subject}</Text>
-                </View>
-                {taskDetails.matchingType === 'manual' && (
-                  <View style={styles.manualMatchBadge}>
-                    <Text style={styles.manualMatchText}>🎯 MANUAL MATCH</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.backButton}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>📤 Upload Delivery</Text>
+          <View style={styles.headerRight} />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Enhanced Task Information Card for Manual Match */}
+          <Animated.View style={[styles.taskInfoCard, { opacity: fadeAnim }]}>
+            <View style={styles.taskHeader}>
+              <View style={styles.taskTitleContainer}>
+                <Text style={styles.taskTitle} numberOfLines={2}>
+                  {taskDetails.title}
+                </Text>
+                <View style={styles.badgeContainer}>
+                  <View style={[styles.subjectBadge, { backgroundColor: subjectColor }]}>
+                    <Text style={styles.subjectText}>{taskDetails.subject}</Text>
                   </View>
+                  {taskDetails.matchingType === 'manual' && (
+                    <View style={styles.manualMatchBadge}>
+                      <Text style={styles.manualMatchText}>🎯 MANUAL MATCH</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <Text style={styles.taskPrice}>{taskDetails.price}</Text>
+            </View>
+
+            <View style={styles.taskDetails}>
+              <View style={styles.taskDetailRow}>
+                <Text style={styles.taskDetailLabel}>👤 Requester:</Text>
+                <Text style={styles.taskDetailValue}>{taskDetails.requesterName || 'Not specified'}</Text>
+              </View>
+              <View style={styles.taskDetailRow}>
+                <Text style={styles.taskDetailLabel}>📅 Due Date:</Text>
+                <Text style={[
+                  styles.taskDetailValue,
+                  daysLeftInfo.isOverdue && styles.overdueText,
+                  daysLeftInfo.isUrgent && styles.urgentText
+                ]}>
+                  {formatDate(taskDetails.deadline)} • {daysLeftInfo.text}
+                </Text>
+              </View>
+              <View style={styles.taskDetailRow}>
+                <Text style={styles.taskDetailLabel}>🎯 Assignment Type:</Text>
+                <Text style={styles.taskDetailValue}>
+                  {taskDetails.matchingType === 'manual' ? 'Manual Match (You were chosen!)' : 'Auto-assigned'}
+                </Text>
+              </View>
+              {taskDetails.status === 'revision_requested' && (
+                <View style={styles.revisionNotice}>
+                  <Text style={styles.revisionIcon}>🔄</Text>
+                  <Text style={styles.revisionText}>
+                    Revision requested - please address the feedback before resubmitting
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Enhanced File Upload Section */}
+          <Animated.View style={[styles.uploadSection, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>📁 Delivery Files</Text>
+            <Text style={styles.sectionSubtitle}>
+              Upload your completed work files • Max 50MB total • 10MB per file
+            </Text>
+
+            {/* Upload Progress */}
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressLabel}>Processing files...</Text>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${Math.min(uploadProgress, 100)}%` }]} />
+                </View>
+                <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
+              </View>
+            )}
+
+            {/* Enhanced Upload Button with multiple options */}
+            <View style={styles.uploadOptionsContainer}>
+              <TouchableOpacity 
+                style={[styles.uploadButton, deliveryFiles.length > 0 && styles.uploadButtonActive]}
+                onPress={showFilePickerOptions}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+              >
+                <Text style={styles.uploadButtonIcon}>
+                  {deliveryFiles.length > 0 ? '📁' : '⬆️'}
+                </Text>
+                <Text style={styles.uploadButtonText}>
+                  {deliveryFiles.length > 0 ? 'Add More Files' : 'Click to Add Files'}
+                </Text>
+                <Text style={styles.uploadButtonSubtext}>
+                  {Platform.OS === 'web' ? 'Or drag and drop files here' : 'Browse or take photos'}
+                </Text>
+                <Text style={styles.uploadButtonFormats}>
+                  PDF, DOC, images, code files, archives, etc.
+                </Text>
+              </TouchableOpacity>
+
+              {/* Quick action buttons */}
+              <View style={styles.quickButtons}>
+                <TouchableOpacity 
+                  style={styles.quickButton}
+                  onPress={handleFilePicker}
+                >
+                  <Text style={styles.quickButtonIcon}>📁</Text>
+                  <Text style={styles.quickButtonText}>Browse</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.quickButton}
+                  onPress={handleImagePicker}
+                >
+                  <Text style={styles.quickButtonIcon}>📷</Text>
+                  <Text style={styles.quickButtonText}>Camera</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.quickButton}
+                  onPress={() => showQuickAddOptions()}
+                >
+                  <Text style={styles.quickButtonIcon}>🎯</Text>
+                  <Text style={styles.quickButtonText}>Quick</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Enhanced Files List */}
+            {deliveryFiles.length > 0 && (
+              <View style={styles.filesContainer}>
+                <View style={styles.filesHeader}>
+                  <Text style={styles.filesTitle}>
+                    📋 Selected Files ({deliveryFiles.length})
+                  </Text>
+                  <Text style={styles.filesSize}>
+                    Total: {FilePicker.formatFileSize(deliveryFiles.reduce((sum, file) => sum + file.rawSize, 0))}
+                  </Text>
+                </View>
+                
+                {deliveryFiles.map((file, index) => (
+                  <Animated.View 
+                    key={file.id}
+                    style={[
+                      styles.fileItem,
+                      { 
+                        opacity: fadeAnim,
+                        transform: [{
+                          translateX: fadeAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [50, 0],
+                          })
+                        }]
+                      }
+                    ]}
+                  >
+                    <View style={styles.fileIcon}>
+                      <Text style={styles.fileIconText}>
+                        {FilePicker.getFileIcon(file.type)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.fileInfo}>
+                      <Text style={styles.fileName}>{file.name}</Text>
+                      <Text style={styles.fileCategory}>{file.category}</Text>
+                      <View style={styles.fileMetadata}>
+                        <Text style={styles.fileSize}>{file.size}</Text>
+                        <Text style={styles.fileTime}>
+                          • Added {new Date(file.uploadTime).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <TouchableOpacity 
+                      style={styles.removeFileButton}
+                      onPress={() => removeFile(file.id)}
+                    >
+                      <Text style={styles.removeFileText}>✕</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Enhanced Message Section for Manual Match */}
+          <Animated.View style={[styles.messageSection, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>💬 Delivery Message</Text>
+            <Text style={styles.sectionSubtitle}>
+              Add a professional message about your completed work
+              {taskDetails.matchingType === 'manual' && ' (Manual Match delivery)'}
+            </Text>
+            
+            <View style={styles.messageInputContainer}>
+              <TextInput
+                style={styles.messageInput}
+                placeholder="Add a professional message about your delivery..."
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={5}
+                value={deliveryMessage}
+                onChangeText={setDeliveryMessage}
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <View style={styles.messageInputFooter}>
+                <Text style={styles.charCount}>
+                  {deliveryMessage.length}/500 characters
+                </Text>
+                {deliveryMessage.length >= 10 && (
+                  <Text style={styles.validMessage}>✓ Good message!</Text>
                 )}
               </View>
             </View>
-            <Text style={styles.taskPrice}>{taskDetails.price}</Text>
-          </View>
 
-          <View style={styles.taskDetails}>
-            <View style={styles.taskDetailRow}>
-              <Text style={styles.taskDetailLabel}>👤 Requester:</Text>
-              <Text style={styles.taskDetailValue}>{taskDetails.requesterName || 'Not specified'}</Text>
+            {/* Enhanced Message Templates for Manual Match */}
+            <View style={styles.templatesContainer}>
+              <Text style={styles.templatesTitle}>💡 Quick Templates:</Text>
+              <View style={styles.templatesGrid}>
+                {messageTemplates.map((template) => (
+                  <TouchableOpacity 
+                    key={template.id}
+                    style={styles.templateCard}
+                    onPress={() => setDeliveryMessage(template.message)}
+                  >
+                    <Text style={styles.templateTitle}>{template.title}</Text>
+                    <Text style={styles.templatePreview} numberOfLines={2}>
+                      {template.message.substring(0, 80)}...
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <View style={styles.taskDetailRow}>
-              <Text style={styles.taskDetailLabel}>📅 Due Date:</Text>
-              <Text style={[
-                styles.taskDetailValue,
-                daysLeftInfo.isOverdue && styles.overdueText,
-                daysLeftInfo.isUrgent && styles.urgentText
-              ]}>
-                {formatDate(taskDetails.deadline)} • {daysLeftInfo.text}
+          </Animated.View>
+
+          {/* Bottom Spacing */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* Enhanced Fixed Bottom Submit Button */}
+        <Animated.View style={[styles.submitContainer, { opacity: fadeAnim }]}>
+          <View style={styles.submitSummary}>
+            <Text style={styles.submitSummaryText}>
+              📁 {deliveryFiles.length} file(s) • 💬 {deliveryMessage.length > 10 ? 'Message ready' : 'Add message'} • {daysLeftInfo.isOverdue ? '⚠️ Late' : daysLeftInfo.isUrgent ? '⏰ Due today' : '✅ On time'}
+              {taskDetails.matchingType === 'manual' && ' • 🎯 Manual Match'}
+            </Text>
+            {deliveryFiles.length > 0 && (
+              <Text style={styles.submitSummarySize}>
+                Total size: {FilePicker.formatFileSize(deliveryFiles.reduce((sum, file) => sum + file.rawSize, 0))}
               </Text>
-            </View>
-            <View style={styles.taskDetailRow}>
-              <Text style={styles.taskDetailLabel}>🎯 Assignment Type:</Text>
-              <Text style={styles.taskDetailValue}>
-                {taskDetails.matchingType === 'manual' ? 'Manual Match (You were chosen!)' : 'Auto-assigned'}
-              </Text>
-            </View>
-            {taskDetails.status === 'revision_requested' && (
-              <View style={styles.revisionNotice}>
-                <Text style={styles.revisionIcon}>🔄</Text>
-                <Text style={styles.revisionText}>
-                  Revision requested - please address the feedback before resubmitting
+            )}
+          </View>
+          
+          <TouchableOpacity 
+            style={[
+              styles.submitButton, 
+              uploading && styles.submitButtonDisabled,
+              deliveryFiles.length === 0 && styles.submitButtonInactive
+            ]}
+            onPress={handleSubmitDelivery}
+            disabled={uploading || deliveryFiles.length === 0}
+          >
+            {uploading ? (
+              <View style={styles.submitButtonContent}>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.submitButtonText}>Uploading... {Math.round(uploadProgress)}%</Text>
+              </View>
+            ) : (
+              <View style={styles.submitButtonContent}>
+                <Text style={styles.submitButtonIcon}>📤</Text>
+                <Text style={styles.submitButtonText}>
+                  {taskDetails.status === 'revision_requested' ? 'Submit Revision' : 
+                   taskDetails.matchingType === 'manual' ? 'Deliver Manual Match Task' : 'Upload & Deliver'}
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         </Animated.View>
-
-        {/* Enhanced File Upload Section */}
-        <Animated.View style={[styles.uploadSection, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>📁 Delivery Files</Text>
-          <Text style={styles.sectionSubtitle}>
-            Upload your completed work files • Max 50MB total • 10MB per file
-          </Text>
-
-          {/* Upload Progress */}
-          {uploadProgress > 0 && uploadProgress < 100 && (
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressLabel}>Processing files...</Text>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${Math.min(uploadProgress, 100)}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
-            </View>
-          )}
-
-          {/* Enhanced Upload Button with multiple options */}
-          <View style={styles.uploadOptionsContainer}>
-            <TouchableOpacity 
-              style={[styles.uploadButton, deliveryFiles.length > 0 && styles.uploadButtonActive]}
-              onPress={showFilePickerOptions}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              <Text style={styles.uploadButtonIcon}>
-                {deliveryFiles.length > 0 ? '📁' : '⬆️'}
-              </Text>
-              <Text style={styles.uploadButtonText}>
-                {deliveryFiles.length > 0 ? 'Add More Files' : 'Click to Add Files'}
-              </Text>
-              <Text style={styles.uploadButtonSubtext}>
-                {Platform.OS === 'web' ? 'Or drag and drop files here' : 'Browse or take photos'}
-              </Text>
-              <Text style={styles.uploadButtonFormats}>
-                PDF, DOC, images, code files, archives, etc.
-              </Text>
-            </TouchableOpacity>
-
-            {/* Quick action buttons */}
-            <View style={styles.quickButtons}>
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={handleFilePicker}
-              >
-                <Text style={styles.quickButtonIcon}>📁</Text>
-                <Text style={styles.quickButtonText}>Browse</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={handleImagePicker}
-              >
-                <Text style={styles.quickButtonIcon}>📷</Text>
-                <Text style={styles.quickButtonText}>Camera</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quickButton}
-                onPress={() => showQuickAddOptions()}
-              >
-                <Text style={styles.quickButtonIcon}>🎯</Text>
-                <Text style={styles.quickButtonText}>Quick</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Enhanced Files List */}
-          {deliveryFiles.length > 0 && (
-            <View style={styles.filesContainer}>
-              <View style={styles.filesHeader}>
-                <Text style={styles.filesTitle}>
-                  📋 Selected Files ({deliveryFiles.length})
-                </Text>
-                <Text style={styles.filesSize}>
-                  Total: {FilePicker.formatFileSize(deliveryFiles.reduce((sum, file) => sum + file.rawSize, 0))}
-                </Text>
-              </View>
-              
-              {deliveryFiles.map((file, index) => (
-                <Animated.View 
-                  key={file.id}
-                  style={[
-                    styles.fileItem,
-                    { 
-                      opacity: fadeAnim,
-                      transform: [{
-                        translateX: fadeAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [50, 0],
-                        })
-                      }]
-                    }
-                  ]}
-                >
-                  <View style={styles.fileIcon}>
-                    <Text style={styles.fileIconText}>
-                      {FilePicker.getFileIcon(file.type)}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.fileInfo}>
-                    <Text style={styles.fileName}>{file.name}</Text>
-                    <Text style={styles.fileCategory}>{file.category}</Text>
-                    <View style={styles.fileMetadata}>
-                      <Text style={styles.fileSize}>{file.size}</Text>
-                      <Text style={styles.fileTime}>
-                        • Added {new Date(file.uploadTime).toLocaleTimeString()}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <TouchableOpacity 
-                    style={styles.removeFileButton}
-                    onPress={() => removeFile(file.id)}
-                  >
-                    <Text style={styles.removeFileText}>✕</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-              ))}
-            </View>
-          )}
-        </Animated.View>
-
-        {/* Enhanced Message Section for Manual Match */}
-        <Animated.View style={[styles.messageSection, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>💬 Delivery Message</Text>
-          <Text style={styles.sectionSubtitle}>
-            Add a professional message about your completed work
-            {taskDetails.matchingType === 'manual' && ' (Manual Match delivery)'}
-          </Text>
-          
-          <View style={styles.messageInputContainer}>
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Add a professional message about your delivery..."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={5}
-              value={deliveryMessage}
-              onChangeText={setDeliveryMessage}
-              maxLength={500}
-              textAlignVertical="top"
-            />
-            <View style={styles.messageInputFooter}>
-              <Text style={styles.charCount}>
-                {deliveryMessage.length}/500 characters
-              </Text>
-              {deliveryMessage.length >= 10 && (
-                <Text style={styles.validMessage}>✓ Good message!</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Enhanced Message Templates for Manual Match */}
-          <View style={styles.templatesContainer}>
-            <Text style={styles.templatesTitle}>💡 Quick Templates:</Text>
-            <View style={styles.templatesGrid}>
-              {messageTemplates.map((template) => (
-                <TouchableOpacity 
-                  key={template.id}
-                  style={styles.templateCard}
-                  onPress={() => setDeliveryMessage(template.message)}
-                >
-                  <Text style={styles.templateTitle}>{template.title}</Text>
-                  <Text style={styles.templatePreview} numberOfLines={2}>
-                    {template.message.substring(0, 80)}...
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-
-      {/* Enhanced Fixed Bottom Submit Button */}
-      <Animated.View style={[styles.submitContainer, { opacity: fadeAnim }]}>
-        <View style={styles.submitSummary}>
-          <Text style={styles.submitSummaryText}>
-            📁 {deliveryFiles.length} file(s) • 💬 {deliveryMessage.length > 10 ? 'Message ready' : 'Add message'} • {daysLeftInfo.isOverdue ? '⚠️ Late' : daysLeftInfo.isUrgent ? '⏰ Due today' : '✅ On time'}
-            {taskDetails.matchingType === 'manual' && ' • 🎯 Manual Match'}
-          </Text>
-          {deliveryFiles.length > 0 && (
-            <Text style={styles.submitSummarySize}>
-              Total size: {FilePicker.formatFileSize(deliveryFiles.reduce((sum, file) => sum + file.rawSize, 0))}
-            </Text>
-          )}
-        </View>
-        
-        <TouchableOpacity 
-          style={[
-            styles.submitButton, 
-            uploading && styles.submitButtonDisabled,
-            deliveryFiles.length === 0 && styles.submitButtonInactive
-          ]}
-          onPress={handleSubmitDelivery}
-          disabled={uploading || deliveryFiles.length === 0}
-        >
-          {uploading ? (
-            <View style={styles.submitButtonContent}>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.submitButtonText}>Uploading... {Math.round(uploadProgress)}%</Text>
-            </View>
-          ) : (
-            <View style={styles.submitButtonContent}>
-              <Text style={styles.submitButtonIcon}>📤</Text>
-              <Text style={styles.submitButtonText}>
-                {taskDetails.status === 'revision_requested' ? 'Submit Revision' : 
-                 taskDetails.matchingType === 'manual' ? 'Deliver Manual Match Task' : 'Upload & Deliver'}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </ErrorBoundary>
   );
 };
 

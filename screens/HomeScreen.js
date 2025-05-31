@@ -1,4 +1,5 @@
-// screens/HomeScreen.js - Complete Fixed Version
+// screens/HomeScreen.js
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
@@ -21,7 +22,7 @@ import { useAppState } from '../services/AppStateManager';
 
 // Import components
 import ManualMatchTaskCard from '../components/task/ManualMatchTaskCard';
-import LoadingScreen from '../components/common/LoadingScreen';
+import LoadingScreen, { ActionLoadingOverlay } from '../components/common/LoadingScreen';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 
 // Constants
@@ -52,20 +53,20 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [acceptingTask, setAcceptingTask] = useState(null);
-  
+
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [selectedUrgency, setSelectedUrgency] = useState('all');
   const [maxPrice, setMaxPrice] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
-  
+
   // Real-time subscription
   const [unsubscribe, setUnsubscribe] = useState(null);
-  
+
   // App state for user role detection
   const { userRole } = useAppState();
-  
+
   // Mock current user - replace with actual auth
   const currentUser = {
     id: 'expert123',
@@ -73,78 +74,100 @@ const HomeScreen = ({ navigation }) => {
     email: 'alex@example.com',
     rating: 4.8,
     completedTasks: 47,
-    specialties: ['Math', 'Physics', 'Engineering']
+    specialties: ['Math', 'Physics', 'Engineering'],
   };
 
   // Load manual match tasks
-  const loadTasks = useCallback(async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true);
-      setError(null);
-      
-      const filters = {
-        subject: selectedSubjects.length === 1 ? selectedSubjects[0] : 'all',
-        urgency: selectedUrgency,
-        maxPrice: maxPrice ? parseFloat(maxPrice) : null,
-        limit: 20
-      };
-      
-      let response;
-      if (searchQuery.trim()) {
-        response = await firestoreService.searchManualTasks(searchQuery, filters);
-      } else {
-        response = await firestoreService.getAvailableManualTasks(filters);
+  const loadTasks = useCallback(
+    async (showLoading = true) => {
+      try {
+        if (showLoading) setLoading(true);
+        setError(null);
+
+        const filters = {
+          subject:
+            selectedSubjects.length === 1 ? selectedSubjects[0] : 'all',
+          urgency: selectedUrgency,
+          maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+          limit: 20,
+        };
+
+        let response;
+        if (searchQuery.trim()) {
+          response = await firestoreService.searchManualTasks(
+            searchQuery,
+            filters
+          );
+        } else {
+          response = await firestoreService.getAvailableManualTasks(
+            filters
+          );
+        }
+
+        if (response.success) {
+          setTasks(response.data);
+          console.log(
+            `📋 Loaded ${response.data.length} manual match tasks`
+          );
+        } else {
+          setError(response.message);
+          console.error('Failed to load tasks:', response.message);
+        }
+      } catch (error) {
+        console.error('Error loading manual tasks:', error);
+        setError('Failed to load tasks. Please try again.');
+      } finally {
+        if (showLoading) setLoading(false);
       }
-      
-      if (response.success) {
-        setTasks(response.data);
-        console.log(`📋 Loaded ${response.data.length} manual match tasks`);
-      } else {
-        setError(response.message);
-        console.error('Failed to load tasks:', response.message);
-      }
-    } catch (error) {
-      console.error('Error loading manual tasks:', error);
-      setError('Failed to load tasks. Please try again.');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [searchQuery, selectedSubjects, selectedUrgency, maxPrice]);
+    },
+    [searchQuery, selectedSubjects, selectedUrgency, maxPrice]
+  );
 
   // Set up real-time subscription for manual match tasks
   useEffect(() => {
-    console.log('🔄 Setting up real-time manual tasks subscription...');
-    
+    console.log(
+      '🔄 Setting up real-time manual tasks subscription...'
+    );
+
     const filters = {
-      subject: selectedSubjects.length === 1 ? selectedSubjects[0] : 'all',
+      subject:
+        selectedSubjects.length === 1 ? selectedSubjects[0] : 'all',
       urgency: selectedUrgency,
       sortBy: 'recent',
-      limit: 20
+      limit: 20,
     };
-    
-    const subscription = firestoreService.subscribeToManualTasks(filters, (response) => {
-      if (response.success) {
-        setTasks(response.data);
-        setError(null);
-        console.log(`🔄 Real-time update: ${response.data.length} manual tasks`);
-      } else {
-        setError(response.message);
-        console.error('Manual tasks subscription error:', response.message);
+
+    const subscription = firestoreService.subscribeToManualTasks(
+      filters,
+      (response) => {
+        if (response.success) {
+          setTasks(response.data);
+          setError(null);
+          console.log(
+            `🔄 Real-time update: ${response.data.length} manual tasks`
+          );
+        } else {
+          setError(response.message);
+          console.error(
+            'Manual tasks subscription error:',
+            response.message
+          );
+        }
+
+        // Hide loading after first update
+        if (loading) {
+          setLoading(false);
+        }
       }
-      
-      // Hide loading after first update
-      if (loading) {
-        setLoading(false);
-      }
-    });
-    
+    );
+
     if (subscription) {
       setUnsubscribe(() => subscription);
     } else {
       // Fallback to manual loading if subscription fails
       loadTasks();
     }
-    
+
     // Cleanup subscription
     return () => {
       if (subscription) {
@@ -152,21 +175,24 @@ const HomeScreen = ({ navigation }) => {
         subscription();
       }
     };
-  }, [selectedSubjects, selectedUrgency]); // Re-subscribe when filters change
+  }, [selectedSubjects, selectedUrgency]);
 
   // Handle search with debouncing
-  const handleSearch = useCallback((query) => {
-    setSearchQuery(query);
-    
-    // Debounce search
-    const searchTimeout = setTimeout(() => {
-      if (query.trim()) {
-        loadTasks(false);
-      }
-    }, 500);
-    
-    return () => clearTimeout(searchTimeout);
-  }, [loadTasks]);
+  const handleSearch = useCallback(
+    (query) => {
+      setSearchQuery(query);
+
+      // Debounce search
+      const searchTimeout = setTimeout(() => {
+        if (query.trim()) {
+          loadTasks(false);
+        }
+      }, 500);
+
+      return () => clearTimeout(searchTimeout);
+    },
+    [loadTasks]
+  );
 
   // Handle refresh
   const onRefresh = useCallback(async () => {
@@ -176,108 +202,128 @@ const HomeScreen = ({ navigation }) => {
   }, [loadTasks]);
 
   // Handle task acceptance
-  const handleAcceptTask = useCallback(async (task) => {
-    try {
-      setAcceptingTask(task.id);
-      
-      console.log('🎯 Expert accepting manual task:', task.title);
-      
-      // Show confirmation with task details
-      Alert.alert(
-        '🎯 Accept Manual Match Task',
-        `Do you want to accept "${task.title}"?\n\nPrice: ${task.price}\nSubject: ${task.subject}\nRequester: ${task.requesterName}\nDeadline: ${new Date(task.deadline).toLocaleDateString()}\n\n⚠️ Once accepted, you'll be assigned and can start working immediately.`,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => setAcceptingTask(null)
-          },
-          {
-            text: 'Accept Task',
-            style: 'default',
-            onPress: async () => {
-              try {
-                const response = await firestoreService.acceptManualTask(
-                  task.id,
-                  currentUser.id,
-                  currentUser
-                );
-                
-                if (response.success) {
-                  Alert.alert(
-                    '🎉 Task Accepted Successfully!',
-                    `You've been assigned to "${task.title}"!\n\nThe requester has been notified and you can now start working. The task has moved to your "My Tasks" section.`,
-                    [
-                      {
-                        text: 'Start Working',
-                        onPress: () => {
-                          navigation?.navigate('UploadDelivery', { 
-                            task: { ...task, status: 'working', assignedExpertId: currentUser.id } 
-                          });
-                        }
-                      },
-                      {
-                        text: 'View My Tasks',
-                        onPress: () => navigation?.navigate('MyTasks')
-                      },
-                      {
-                        text: 'Continue Browsing',
-                        style: 'cancel'
-                      }
-                    ]
+  const handleAcceptTask = useCallback(
+    async (task) => {
+      try {
+        setAcceptingTask(task.id);
+
+        console.log(
+          '🎯 Expert accepting manual task:',
+          task.title
+        );
+
+        // Show confirmation with task details
+        Alert.alert(
+          '🎯 Accept Manual Match Task',
+          `Do you want to accept "${task.title}"?\n\nPrice: ${task.price}\nSubject: ${task.subject}\nRequester: ${task.requesterName}\nDeadline: ${new Date(
+            task.deadline
+          ).toLocaleDateString()}\n\n⚠️ Once accepted, you'll be assigned and can start working immediately.`,
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => setAcceptingTask(null),
+            },
+            {
+              text: 'Accept Task',
+              style: 'default',
+              onPress: async () => {
+                try {
+                  const response = await firestoreService.acceptManualTask(
+                    task.id,
+                    currentUser.id,
+                    currentUser
                   );
-                  
-                  // Remove task from local state
-                  setTasks(prev => prev.filter(t => t.id !== task.id));
-                  
-                } else {
+
+                  if (response.success) {
+                    Alert.alert(
+                      '🎉 Task Accepted Successfully!',
+                      `You've been assigned to "${task.title}"!\n\nThe requester has been notified and you can now start working. The task has moved to your "My Tasks" section.`,
+                      [
+                        {
+                          text: 'Start Working',
+                          onPress: () =>
+                            navigation?.navigate('UploadDelivery', {
+                              task: {
+                                ...task,
+                                status: 'working',
+                                assignedExpertId: currentUser.id,
+                              },
+                            }),
+                        },
+                        {
+                          text: 'View My Tasks',
+                          onPress: () =>
+                            navigation?.navigate('MyTasks'),
+                        },
+                        {
+                          text: 'Continue Browsing',
+                          style: 'cancel',
+                        },
+                      ]
+                    );
+
+                    // Remove task from local state
+                    setTasks((prev) =>
+                      prev.filter((t) => t.id !== task.id)
+                    );
+                  } else {
+                    Alert.alert(
+                      'Unable to Accept Task',
+                      response.message ||
+                        'This task may no longer be available. Please try another task.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+                } catch (error) {
+                  console.error('Error accepting task:', error);
                   Alert.alert(
-                    'Unable to Accept Task',
-                    response.message || 'This task may no longer be available. Please try another task.',
+                    'Error',
+                    'Failed to accept task. Please check your connection and try again.',
                     [{ text: 'OK' }]
                   );
+                } finally {
+                  setAcceptingTask(null);
                 }
-              } catch (error) {
-                console.error('Error accepting task:', error);
-                Alert.alert(
-                  'Error',
-                  'Failed to accept task. Please check your connection and try again.',
-                  [{ text: 'OK' }]
-                );
-              } finally {
-                setAcceptingTask(null);
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Error in accept task handler:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-      setAcceptingTask(null);
-    }
-  }, [currentUser, navigation]);
+              },
+            },
+          ]
+        );
+      } catch (error) {
+        console.error('Error in accept task handler:', error);
+        Alert.alert(
+          'Error',
+          'Something went wrong. Please try again.'
+        );
+        setAcceptingTask(null);
+      }
+    },
+    [currentUser, navigation]
+  );
 
   // Handle view task details
-  const handleViewTaskDetails = useCallback((task) => {
-    // Increment view count
-    firestoreService.incrementTaskViews(task.id);
-    
-    // Navigate to task details
-    navigation?.navigate('TaskDetails', {
-      taskId: task.id,
-      role: 'expert',
-      task: task,
-      isManualMatch: true
-    });
-  }, [navigation]);
+  const handleViewTaskDetails = useCallback(
+    (task) => {
+      // Increment view count
+      firestoreService.incrementTaskViews(task.id);
+
+      // Navigate to task details
+      navigation?.navigate('TaskDetails', {
+        taskId: task.id,
+        role: 'expert',
+        task: task,
+        isManualMatch: true,
+      });
+    },
+    [navigation]
+  );
 
   // Toggle subject selection
   const toggleSubjectSelection = useCallback((subjectValue) => {
-    setSelectedSubjects(prev => {
+    setSelectedSubjects((prev) => {
       const lowercaseValue = subjectValue.toLowerCase();
       if (prev.includes(lowercaseValue)) {
-        return prev.filter(s => s !== lowercaseValue);
+        return prev.filter((s) => s !== lowercaseValue);
       } else {
         return [...prev, lowercaseValue];
       }
@@ -293,7 +339,11 @@ const HomeScreen = ({ navigation }) => {
   }, []);
 
   // Check if any filters are active
-  const hasActiveFilters = searchQuery.trim() || selectedSubjects.length > 0 || selectedUrgency !== 'all' || maxPrice.trim();
+  const hasActiveFilters =
+    searchQuery.trim() ||
+    selectedSubjects.length > 0 ||
+    selectedUrgency !== 'all' ||
+    maxPrice.trim();
 
   // Filter tasks based on search and filters (client-side filtering for real-time updates)
   const filteredTasks = useMemo(() => {
@@ -302,50 +352,58 @@ const HomeScreen = ({ navigation }) => {
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(query) ||
-        task.subject.toLowerCase().includes(query) ||
-        task.description.toLowerCase().includes(query) ||
-        task.requesterName?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (task) =>
+          task.title.toLowerCase().includes(query) ||
+          task.subject.toLowerCase().includes(query) ||
+          task.description.toLowerCase().includes(query) ||
+          task.requesterName?.toLowerCase().includes(query)
       );
     }
 
     // Apply subject filter (client-side for real-time updates)
     if (selectedSubjects.length > 0) {
-      filtered = filtered.filter(task => 
+      filtered = filtered.filter((task) =>
         selectedSubjects.includes(task.subject.toLowerCase())
       );
     }
 
     // Apply urgency filter (client-side)
     if (selectedUrgency !== 'all') {
-      filtered = filtered.filter(task => task.urgency === selectedUrgency);
+      filtered = filtered.filter(
+        (task) => task.urgency === selectedUrgency
+      );
     }
 
     // Apply price filter (client-side)
     if (maxPrice) {
       const maxPriceNum = parseFloat(maxPrice);
-      filtered = filtered.filter(task => {
+      filtered = filtered.filter((task) => {
         const taskPrice = parseFloat(task.price.replace('$', ''));
         return taskPrice <= maxPriceNum;
       });
     }
 
     // Sort by creation date (newest first)
-    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    filtered.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
     return filtered;
   }, [tasks, searchQuery, selectedSubjects, selectedUrgency, maxPrice]);
 
   // Render task card
-  const renderTaskCard = useCallback(({ item }) => (
-    <ManualMatchTaskCard
-      task={item}
-      onAccept={handleAcceptTask}
-      onViewDetails={handleViewTaskDetails}
-      isAccepting={acceptingTask === item.id}
-    />
-  ), [handleAcceptTask, handleViewTaskDetails, acceptingTask]);
+  const renderTaskCard = useCallback(
+    ({ item }) => (
+      <ManualMatchTaskCard
+        task={item}
+        onAccept={handleAcceptTask}
+        onViewDetails={handleViewTaskDetails}
+        isAccepting={acceptingTask === item.id}
+      />
+    ),
+    [handleAcceptTask, handleViewTaskDetails, acceptingTask]
+  );
 
   // Show different content for requesters
   if (userRole === 'requester') {
@@ -353,22 +411,36 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.roleMessageContainer}>
           <Text style={styles.roleMessageIcon}>👑</Text>
-          <Text style={styles.roleMessageTitle}>Requester Dashboard</Text>
+          <Text style={styles.roleMessageTitle}>
+            Requester Dashboard
+          </Text>
           <Text style={styles.roleMessageText}>
-            As a requester, you post tasks and experts can find them. Check your "My Tasks" section to see posted tasks and track progress.
+            As a requester, you post tasks and experts can find
+            them. Check your "My Tasks" section to see posted tasks
+            and track progress.
           </Text>
           <View style={styles.roleActionButtons}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.roleMessageButton}
               onPress={() => navigation?.navigate('MyTasks')}
             >
-              <Text style={styles.roleMessageButtonText}>📂 View My Tasks</Text>
+              <Text style={styles.roleMessageButtonText}>
+                📂 View My Tasks
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.roleMessageButton, styles.roleMessageButtonSecondary]}
+            <TouchableOpacity
+              style={[
+                styles.roleMessageButton,
+                styles.roleMessageButtonSecondary,
+              ]}
               onPress={() => navigation?.navigate('PostTask')}
             >
-              <Text style={[styles.roleMessageButtonText, styles.roleMessageButtonTextSecondary]}>
+              <Text
+                style={[
+                  styles.roleMessageButtonText,
+                  styles.roleMessageButtonTextSecondary,
+                ]}
+              >
                 ➕ Post New Task
               </Text>
             </TouchableOpacity>
@@ -381,8 +453,8 @@ const HomeScreen = ({ navigation }) => {
   // Loading state
   if (loading && tasks.length === 0) {
     return (
-      <LoadingScreen 
-        message="Loading available tasks..." 
+      <LoadingScreen
+        message="Loading available tasks..."
         submessage="Finding manual match opportunities for experts"
       />
     );
@@ -395,25 +467,38 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.headerContainer}>
           <View style={styles.headerRow}>
             <View>
-              <Text style={styles.header}>🎯 Expert Marketplace</Text>
-              <Text style={styles.headerSubtitle}>Manual Match Tasks • Choose your assignments</Text>
+              <Text style={styles.header}>
+                🎯 Expert Marketplace
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                Manual Match Tasks • Choose your assignments
+              </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.myTasksButton}
               onPress={() => navigation?.navigate('MyTasks')}
             >
-              <Text style={styles.myTasksButtonText}>📂 My Tasks</Text>
+              <Text style={styles.myTasksButtonText}>
+                📂 My Tasks
+              </Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.resultContainer}>
             <Text style={styles.resultCount}>
-              {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} available
-              {tasks.length !== filteredTasks.length && ` (${tasks.length} total)`}
+              {filteredTasks.length} task
+              {filteredTasks.length !== 1 ? 's' : ''} available
+              {tasks.length !== filteredTasks.length &&
+                ` (${tasks.length} total)`}
             </Text>
             {hasActiveFilters && (
-              <TouchableOpacity onPress={clearAllFilters} style={styles.clearButton}>
-                <Text style={styles.clearButtonText}>Clear All</Text>
+              <TouchableOpacity
+                onPress={clearAllFilters}
+                style={styles.clearButton}
+              >
+                <Text style={styles.clearButtonText}>
+                  Clear All
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -432,32 +517,38 @@ const HomeScreen = ({ navigation }) => {
               returnKeyType="search"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 style={styles.clearSearchButton}
               >
                 <Text style={styles.clearSearchText}>✕</Text>
               </TouchableOpacity>
             )}
-            
+
             {/* Filter Button */}
             <TouchableOpacity
               onPress={() => setShowFilterModal(true)}
               style={[
                 styles.filterButton,
-                hasActiveFilters && styles.filterButtonActive
+                hasActiveFilters && styles.filterButtonActive,
               ]}
             >
-              <Text style={[
-                styles.filterIcon,
-                hasActiveFilters && styles.filterIconActive
-              ]}>
+              <Text
+                style={[
+                  styles.filterIcon,
+                  hasActiveFilters && styles.filterIconActive,
+                ]}
+              >
                 ⚙️
               </Text>
               {hasActiveFilters && (
                 <View style={styles.filterBadge}>
                   <Text style={styles.filterBadgeText}>
-                    {[selectedSubjects.length > 0, selectedUrgency !== 'all', maxPrice.trim()].filter(Boolean).length}
+                    {[
+                      selectedSubjects.length > 0,
+                      selectedUrgency !== 'all',
+                      maxPrice.trim(),
+                    ].filter(Boolean).length}
                   </Text>
                 </View>
               )}
@@ -468,42 +559,56 @@ const HomeScreen = ({ navigation }) => {
         {/* Active Filters Display */}
         {hasActiveFilters && (
           <View style={styles.activeFiltersContainer}>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.activeFiltersContent}
             >
               {selectedSubjects.map((subject) => {
-                const subjectData = SUBJECTS.find(s => s.value.toLowerCase() === subject);
+                const subjectData = SUBJECTS.find(
+                  (s) => s.value.toLowerCase() === subject
+                );
                 return (
                   <View key={subject} style={styles.filterChip}>
                     <Text style={styles.filterChipText}>
                       {subjectData?.label || subject}
                     </Text>
                     <TouchableOpacity
-                      onPress={() => toggleSubjectSelection(subjectData?.value || subject)}
+                      onPress={() =>
+                        toggleSubjectSelection(
+                          subjectData?.value || subject
+                        )
+                      }
                       style={styles.filterChipRemove}
                     >
-                      <Text style={styles.filterChipRemoveText}>✕</Text>
+                      <Text style={styles.filterChipRemoveText}>
+                        ✕
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 );
               })}
-              
+
               {selectedUrgency !== 'all' && (
                 <View style={styles.filterChip}>
                   <Text style={styles.filterChipText}>
-                    {URGENCY_LEVELS.find(u => u.value === selectedUrgency)?.label || selectedUrgency}
+                    {
+                      URGENCY_LEVELS.find(
+                        (u) => u.value === selectedUrgency
+                      )?.label || selectedUrgency
+                    }
                   </Text>
                   <TouchableOpacity
                     onPress={() => setSelectedUrgency('all')}
                     style={styles.filterChipRemove}
                   >
-                    <Text style={styles.filterChipRemoveText}>✕</Text>
+                    <Text style={styles.filterChipRemoveText}>
+                      ✕
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
-              
+
               {maxPrice.trim() && (
                 <View style={styles.filterChip}>
                   <Text style={styles.filterChipText}>
@@ -513,7 +618,9 @@ const HomeScreen = ({ navigation }) => {
                     onPress={() => setMaxPrice('')}
                     style={styles.filterChipRemove}
                   >
-                    <Text style={styles.filterChipRemoveText}>✕</Text>
+                    <Text style={styles.filterChipRemoveText}>
+                      ✕
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -528,25 +635,36 @@ const HomeScreen = ({ navigation }) => {
               {hasActiveFilters ? '🔍' : '🎯'}
             </Text>
             <Text style={styles.emptyTitle}>
-              {hasActiveFilters ? 'No tasks match your filters' : 'No manual match tasks available'}
+              {hasActiveFilters
+                ? 'No tasks match your filters'
+                : 'No manual match tasks available'}
             </Text>
             <Text style={styles.emptyText}>
-              {hasActiveFilters 
+              {hasActiveFilters
                 ? 'Try adjusting your search criteria or check back later for new opportunities'
-                : 'Check back soon for new manual match assignments! Experts can choose tasks that match their skills.'
-              }
+                : 'Check back soon for new manual match assignments! Experts can choose tasks that match their skills.'}
             </Text>
             {hasActiveFilters && (
-              <TouchableOpacity onPress={clearAllFilters} style={styles.emptyButton}>
-                <Text style={styles.emptyButtonText}>Clear Filters</Text>
+              <TouchableOpacity
+                onPress={clearAllFilters}
+                style={styles.emptyButton}
+              >
+                <Text style={styles.emptyButtonText}>
+                  Clear Filters
+                </Text>
               </TouchableOpacity>
             )}
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.emptyButton, styles.emptyButtonSecondary]}
               onPress={() => loadTasks()}
             >
-              <Text style={[styles.emptyButtonText, styles.emptyButtonTextSecondary]}>
+              <Text
+                style={[
+                  styles.emptyButtonText,
+                  styles.emptyButtonTextSecondary,
+                ]}
+              >
                 🔄 Refresh Feed
               </Text>
             </TouchableOpacity>
@@ -569,13 +687,16 @@ const HomeScreen = ({ navigation }) => {
             ListHeaderComponent={
               <View style={styles.listHeader}>
                 <Text style={styles.instructionText}>
-                  💡 Pull down to refresh • Tap to view details • Accept to claim tasks
+                  💡 Pull down to refresh • Tap to view details • Accept
+                  to claim tasks
                 </Text>
                 {error && (
                   <View style={styles.errorBanner}>
-                    <Text style={styles.errorText}>⚠️ {error}</Text>
-                    <TouchableOpacity 
-                      onPress={() => loadTasks()} 
+                    <Text style={styles.errorText}>
+                      ⚠️ {error}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => loadTasks()}
                       style={styles.retryButton}
                     >
                       <Text style={styles.retryText}>Retry</Text>
@@ -617,26 +738,38 @@ const HomeScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.modalScrollView}
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Subjects Filter */}
                 <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>📚 Subjects</Text>
+                  <Text style={styles.filterSectionTitle}>
+                    📚 Subjects
+                  </Text>
                   <View style={styles.subjectGrid}>
                     {SUBJECTS.map((subject) => {
-                      const isSelected = selectedSubjects.includes(subject.value.toLowerCase());
+                      const isSelected = selectedSubjects.includes(
+                        subject.value.toLowerCase()
+                      );
                       return (
                         <TouchableOpacity
                           key={subject.id}
                           style={[
                             styles.subjectItem,
-                            isSelected && styles.subjectItemSelected
+                            isSelected && styles.subjectItemSelected,
                           ]}
-                          onPress={() => toggleSubjectSelection(subject.value)}
+                          onPress={() =>
+                            toggleSubjectSelection(subject.value)
+                          }
                         >
-                          <Text style={[
-                            styles.subjectItemText,
-                            isSelected && styles.subjectItemTextSelected
-                          ]}>
+                          <Text
+                            style={[
+                              styles.subjectItemText,
+                              isSelected &&
+                                styles.subjectItemTextSelected,
+                            ]}
+                          >
                             {subject.label}
                           </Text>
                         </TouchableOpacity>
@@ -647,37 +780,47 @@ const HomeScreen = ({ navigation }) => {
 
                 {/* Urgency Filter */}
                 <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>⚡ Priority Level</Text>
+                  <Text style={styles.filterSectionTitle}>
+                    ⚡ Priority Level
+                  </Text>
                   <TouchableOpacity
                     style={[
                       styles.urgencyItem,
-                      selectedUrgency === 'all' && styles.urgencyItemSelected
+                      selectedUrgency === 'all' &&
+                        styles.urgencyItemSelected,
                     ]}
                     onPress={() => setSelectedUrgency('all')}
                   >
-                    <Text style={[
-                      styles.urgencyItemText,
-                      selectedUrgency === 'all' && styles.urgencyItemTextSelected
-                    ]}>
+                    <Text
+                      style={[
+                        styles.urgencyItemText,
+                        selectedUrgency === 'all' &&
+                          styles.urgencyItemTextSelected,
+                      ]}
+                    >
                       📋 All Priorities
                     </Text>
                   </TouchableOpacity>
-                  
+
                   {URGENCY_LEVELS.map((urgency) => {
-                    const isSelected = selectedUrgency === urgency.value;
+                    const isSelected =
+                      selectedUrgency === urgency.value;
                     return (
                       <TouchableOpacity
                         key={urgency.id}
                         style={[
                           styles.urgencyItem,
-                          isSelected && styles.urgencyItemSelected
+                          isSelected && styles.urgencyItemSelected,
                         ]}
                         onPress={() => setSelectedUrgency(urgency.value)}
                       >
-                        <Text style={[
-                          styles.urgencyItemText,
-                          isSelected && styles.urgencyItemTextSelected
-                        ]}>
+                        <Text
+                          style={[
+                            styles.urgencyItemText,
+                            isSelected &&
+                              styles.urgencyItemTextSelected,
+                          ]}
+                        >
                           {urgency.label}
                         </Text>
                       </TouchableOpacity>
@@ -687,7 +830,9 @@ const HomeScreen = ({ navigation }) => {
 
                 {/* Price Filter */}
                 <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>💰 Maximum Price</Text>
+                  <Text style={styles.filterSectionTitle}>
+                    💰 Maximum Price
+                  </Text>
                   <View style={styles.priceInputContainer}>
                     <Text style={styles.priceSymbol}>$</Text>
                     <TextInput
@@ -711,37 +856,52 @@ const HomeScreen = ({ navigation }) => {
                 </View>
 
                 {/* Clear Filters Button */}
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.clearFiltersButton}
                   onPress={clearAllFilters}
                 >
-                  <Text style={styles.clearFiltersButtonText}>Clear All Filters</Text>
+                  <Text style={styles.clearFiltersButtonText}>
+                    Clear All Filters
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </Pressable>
           </Pressable>
         </Modal>
 
-        {/* Loading overlay for task acceptance */}
+        {/* Enhanced Loading overlay for task acceptance */}
         {acceptingTask && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingCard}>
-              <ActivityIndicator size="large" color="#2e7d32" />
-              <Text style={styles.loadingText}>Accepting task...</Text>
-            </View>
-          </View>
+          <ActionLoadingOverlay
+            visible={!!acceptingTask}
+            message="Accepting task..."
+            submessage="Assigning you to this manual match task..."
+            onCancel={() => {
+              Alert.alert(
+                'Cancel Task Acceptance',
+                'Are you sure you want to cancel accepting this task?',
+                [
+                  { text: 'Continue Accepting', style: 'cancel' },
+                  { 
+                    text: 'Cancel', 
+                    style: 'destructive',
+                    onPress: () => setAcceptingTask(null)
+                  }
+                ]
+              );
+            }}
+          />
         )}
       </View>
     </ErrorBoundary>
   );
-}; // FIXED: Added missing closing brace for the HomeScreen component
+}; // End of HomeScreen component
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f4f5f9',
   },
-  
+
   // Role message for requesters
   roleMessageContainer: {
     flex: 1,
@@ -800,7 +960,7 @@ const styles = StyleSheet.create({
   roleMessageButtonTextSecondary: {
     color: '#2e7d32',
   },
-  
+
   // Header
   headerContainer: {
     paddingHorizontal: 16,
@@ -869,7 +1029,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  
+
   // Search and filter
   searchContainer: {
     paddingHorizontal: 16,
@@ -937,7 +1097,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  
+
   // Active filters
   activeFiltersContainer: {
     paddingHorizontal: 16,
@@ -978,7 +1138,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  
+
   // Task list
   listHeader: {
     paddingVertical: 8,
@@ -1022,7 +1182,7 @@ const styles = StyleSheet.create({
   taskList: {
     paddingBottom: 20,
   },
-  
+
   // Empty state
   emptyContainer: {
     alignItems: 'center',
@@ -1069,7 +1229,7 @@ const styles = StyleSheet.create({
   emptyButtonTextSecondary: {
     color: '#2e7d32',
   },
-  
+
   // Modal styles
   modalOverlay: {
     flex: 1,
@@ -1110,7 +1270,7 @@ const styles = StyleSheet.create({
   modalScrollView: {
     paddingHorizontal: 20,
   },
-  
+
   // Filter sections
   filterSection: {
     marginBottom: 24,
@@ -1121,7 +1281,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 12,
   },
-  
+
   // Subject filter
   subjectGrid: {
     gap: 8,
@@ -1146,7 +1306,7 @@ const styles = StyleSheet.create({
     color: '#2e7d32',
     fontWeight: '600',
   },
-  
+
   // Urgency filter
   urgencyItem: {
     backgroundColor: '#f8f9fa',
@@ -1169,7 +1329,7 @@ const styles = StyleSheet.create({
     color: '#2e7d32',
     fontWeight: '600',
   },
-  
+
   // Price filter
   priceInputContainer: {
     flexDirection: 'row',
@@ -1199,7 +1359,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
-  
+
   // Clear filters button
   clearFiltersButton: {
     backgroundColor: '#f8f9fa',
@@ -1215,8 +1375,8 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '600',
   },
-  
-  // Loading overlay
+
+  // Loading overlay (no longer used here)
   loadingOverlay: {
     position: 'absolute',
     top: 0,
