@@ -23,6 +23,10 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
     updateFormData('matchingType', type);
   };
 
+  const setUrgencyLevel = (urgency) => {
+    updateFormData('urgency', urgency);
+  };
+
   const getDeadlineButtonStyle = (days) => {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + days);
@@ -37,6 +41,14 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
     const targetDeadline = `${targetDate.toDateString()} at 11:59 PM`;
     
     return formData.deadline === targetDeadline ? styles.selectedDeadlineButtonText : styles.quickButtonText;
+  };
+
+  const getUrgencyStyle = (urgencyLevel) => {
+    return formData.urgency === urgencyLevel ? styles.selectedUrgencyButton : styles.urgencyButton;
+  };
+
+  const getUrgencyTextStyle = (urgencyLevel) => {
+    return formData.urgency === urgencyLevel ? styles.selectedUrgencyButtonText : styles.urgencyButtonText;
   };
 
   return (
@@ -121,6 +133,52 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           </View>
         </View>
 
+        {/* Urgency Level Section - NEW */}
+        <View style={styles.section}>
+          <Text style={styles.label}>🔥 Priority Level</Text>
+          <Text style={styles.subtitle}>
+            How urgent is this task? This helps experts understand the importance.
+          </Text>
+          
+          <View style={styles.urgencyContainer}>
+            <TouchableOpacity
+              style={getUrgencyStyle('high')}
+              onPress={() => setUrgencyLevel('high')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.urgencyIcon}>🔥</Text>
+              <View style={styles.urgencyTextContainer}>
+                <Text style={getUrgencyTextStyle('high')}>High Priority</Text>
+                <Text style={styles.urgencySubtext}>Rush job - urgent deadline</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={getUrgencyStyle('medium')}
+              onPress={() => setUrgencyLevel('medium')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.urgencyIcon}>⚡</Text>
+              <View style={styles.urgencyTextContainer}>
+                <Text style={getUrgencyTextStyle('medium')}>Medium Priority</Text>
+                <Text style={styles.urgencySubtext}>Standard timeline</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={getUrgencyStyle('low')}
+              onPress={() => setUrgencyLevel('low')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.urgencyIcon}>🌱</Text>
+              <View style={styles.urgencyTextContainer}>
+                <Text style={getUrgencyTextStyle('low')}>Low Priority</Text>
+                <Text style={styles.urgencySubtext}>Flexible timeline</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Budget Section */}
         <View style={styles.section}>
           <Text style={styles.label}>💰 Your Budget</Text>
@@ -182,14 +240,50 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           <Text style={styles.charCount}>{formData.specialInstructions.length}/500</Text>
         </View>
 
-        {/* Matching Preferences */}
+        {/* ENHANCED Expert Matching - Manual Match Focus */}
         <View style={styles.section}>
-          <Text style={styles.label}>🎯 Expert Matching</Text>
+          <Text style={styles.label}>🎯 Expert Matching System</Text>
           <Text style={styles.subtitle}>
-            How should we find the right expert for you?
+            Choose how experts will find and accept your task
           </Text>
           
           <View style={styles.matchingContainer}>
+            {/* Manual Match - FEATURED */}
+            <TouchableOpacity
+              style={[
+                styles.matchingOption,
+                styles.featuredOption,
+                formData.matchingType === 'manual' && styles.selectedMatching,
+              ]}
+              onPress={() => toggleMatchingType('manual')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.matchingHeader}>
+                <Text style={styles.matchingIcon}>🎯</Text>
+                <View style={styles.featuredBadge}>
+                  <Text style={styles.featuredBadgeText}>RECOMMENDED</Text>
+                </View>
+              </View>
+              <View style={styles.matchingTextContainer}>
+                <Text style={[
+                  styles.matchingText,
+                  formData.matchingType === 'manual' && styles.selectedMatchingText,
+                ]}>
+                  Manual Match
+                </Text>
+                <Text style={styles.matchingSubtext}>
+                  You choose the best expert
+                </Text>
+                <Text style={styles.matchingDescription}>
+                  • See expert profiles & ratings{'\n'}
+                  • Compare multiple applicants{'\n'}
+                  • Choose who you trust most{'\n'}
+                  • More control over selection
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Auto Match - Secondary option */}
             <TouchableOpacity
               style={[
                 styles.matchingOption,
@@ -209,27 +303,11 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
                 <Text style={styles.matchingSubtext}>
                   Fast & automatic
                 </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.matchingOption,
-                formData.matchingType === 'manual' && styles.selectedMatching,
-              ]}
-              onPress={() => toggleMatchingType('manual')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.matchingIcon}>👀</Text>
-              <View style={styles.matchingTextContainer}>
-                <Text style={[
-                  styles.matchingText,
-                  formData.matchingType === 'manual' && styles.selectedMatchingText,
-                ]}>
-                  Manual Review
-                </Text>
-                <Text style={styles.matchingSubtext}>
-                  You choose expert
+                <Text style={styles.matchingDescription}>
+                  • We assign the best available expert{'\n'}
+                  • Faster task assignment{'\n'}
+                  • Based on skills & availability{'\n'}
+                  • Good for simple tasks
                 </Text>
               </View>
             </TouchableOpacity>
@@ -237,13 +315,54 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           
           <View style={styles.matchingExplanation}>
             <Text style={styles.explanationText}>
-              {formData.matchingType === 'auto' 
-                ? '🤖 We\'ll automatically match you with the best available expert based on their skills and ratings.'
-                : '👁️ You\'ll receive applications from experts and can choose who you want to work with.'
+              {formData.matchingType === 'manual' 
+                ? '🎯 Your task will appear on the public feed where experts can view and apply. You\'ll review applications and choose your preferred expert.'
+                : '⚡ We\'ll automatically assign the most suitable expert based on their skills, ratings, and availability. Assignment typically happens within 1-2 hours.'
               }
             </Text>
           </View>
         </View>
+
+        {/* Manual Match Additional Info */}
+        {formData.matchingType === 'manual' && (
+          <View style={styles.section}>
+            <View style={styles.manualMatchInfo}>
+              <Text style={styles.manualMatchTitle}>📋 What happens with Manual Match?</Text>
+              
+              <View style={styles.processStep}>
+                <Text style={styles.stepNumber}>1</Text>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepTitle}>Task goes live on expert feed</Text>
+                  <Text style={styles.stepText}>Experts browse and find your task</Text>
+                </View>
+              </View>
+              
+              <View style={styles.processStep}>
+                <Text style={styles.stepNumber}>2</Text>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepTitle}>Experts apply to your task</Text>
+                  <Text style={styles.stepText}>You'll see their profiles and ratings</Text>
+                </View>
+              </View>
+              
+              <View style={styles.processStep}>
+                <Text style={styles.stepNumber}>3</Text>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepTitle}>You choose the best expert</Text>
+                  <Text style={styles.stepText}>Select based on experience and reviews</Text>
+                </View>
+              </View>
+              
+              <View style={styles.processStep}>
+                <Text style={styles.stepNumber}>4</Text>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepTitle}>Expert starts working</Text>
+                  <Text style={styles.stepText}>Payment is held securely until completion</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Summary */}
         <View style={styles.summarySection}>
@@ -253,13 +372,21 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
             <Text style={styles.summaryValue}>{formData.deadline || 'Not set'}</Text>
           </View>
           <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Priority:</Text>
+            <Text style={styles.summaryValue}>
+              {formData.urgency === 'high' ? '🔥 High Priority' : 
+               formData.urgency === 'medium' ? '⚡ Medium Priority' : 
+               '🌱 Low Priority'}
+            </Text>
+          </View>
+          <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Budget:</Text>
             <Text style={styles.summaryValue}>${formData.budget || '0'}</Text>
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>Matching:</Text>
             <Text style={styles.summaryValue}>
-              {formData.matchingType === 'auto' ? 'Auto-match ⚡' : 'Manual Review 👀'}
+              {formData.matchingType === 'manual' ? '🎯 Manual Match' : '⚡ Auto-match'}
             </Text>
           </View>
         </View>
@@ -281,7 +408,7 @@ const StepFour = ({ formData, updateFormData, onNext, onBack, currentStep }) => 
           <Text style={styles.nextButtonText}>
             {(!formData.deadline || !formData.budget) 
               ? 'Complete Required Fields' 
-              : 'Review & Pay →'
+              : 'Review & Confirm →'
             }
           </Text>
         </TouchableOpacity>
@@ -428,6 +555,56 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+  
+  // NEW - Urgency styles
+  urgencyContainer: {
+    gap: 12,
+  },
+  urgencyButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e5e5',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  selectedUrgencyButton: {
+    backgroundColor: '#f8fff8',
+    borderColor: '#2e7d32',
+    shadowColor: '#2e7d32',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  urgencyIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  urgencyTextContainer: {
+    flex: 1,
+  },
+  urgencyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  selectedUrgencyButtonText: {
+    color: '#2e7d32',
+    fontWeight: '700',
+  },
+  urgencySubtext: {
+    fontSize: 12,
+    color: '#666',
+  },
+  
   budgetContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -496,16 +673,13 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   matchingContainer: {
-    flexDirection: 'row',
     gap: 12,
     marginBottom: 12,
   },
   matchingOption: {
-    flex: 1,
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
     borderWidth: 2,
     borderColor: '#e5e5e5',
     shadowColor: '#000',
@@ -513,6 +687,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     elevation: 2,
+  },
+  featuredOption: {
+    borderColor: '#2e7d32',
+    backgroundColor: '#f8fff8',
   },
   selectedMatching: {
     borderColor: '#2e7d32',
@@ -523,25 +701,48 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  matchingIcon: {
-    fontSize: 24,
+  matchingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  matchingIcon: {
+    fontSize: 24,
+  },
+  featuredBadge: {
+    backgroundColor: '#ff9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  featuredBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
   matchingTextContainer: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   matchingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 2,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
   },
   selectedMatchingText: {
     color: '#2e7d32',
   },
   matchingSubtext: {
     fontSize: 12,
-    color: '#999',
+    color: '#666',
+    marginBottom: 8,
+  },
+  matchingDescription: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 16,
   },
   matchingExplanation: {
     backgroundColor: '#f8f9fa',
@@ -554,6 +755,53 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
   },
+  
+  // Manual Match Process Info
+  manualMatchInfo: {
+    backgroundColor: '#e3f2fd',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196f3',
+  },
+  manualMatchTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1976d2',
+    marginBottom: 16,
+  },
+  processStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2196f3',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginRight: 12,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1976d2',
+    marginBottom: 2,
+  },
+  stepText: {
+    fontSize: 12,
+    color: '#1976d2',
+    lineHeight: 16,
+  },
+  
   summarySection: {
     backgroundColor: '#fff',
     borderRadius: 12,
