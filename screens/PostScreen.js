@@ -1,3 +1,4 @@
+// screens/PostScreen.js - Enhanced with Firestore integration
 import React, { useState } from 'react';
 import {
   View,
@@ -8,14 +9,19 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
+// Import services
+import firestoreService from '../services/FirestoreService';
+
+// Import existing step components
 import StepOne from './PostTaskSteps/StepOne';
 import StepTwo from './PostTaskSteps/StepTwo';
 import StepThree from './PostTaskSteps/StepThree';
 import StepFour from './PostTaskSteps/StepFour';
 import StepFive from './PostTaskSteps/StepFive';
 
-const PostScreen = () => {
+const PostScreen = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     subject: '',
     title: '',
@@ -26,9 +32,16 @@ const PostScreen = () => {
     aiPercentage: 40,
     deadline: null,
     specialInstructions: '',
-    matchingType: 'auto',
+    matchingType: 'manual', // Default to manual for this implementation
     budget: '',
     paymentMethod: null,
+    
+    // Additional fields for Firestore
+    urgency: 'medium',
+    estimatedHours: null,
+    tags: [],
+    requesterId: 'user123', // Replace with actual user ID
+    requesterName: 'Current User', // Replace with actual user name
   });
 
   const updateFormData = (field, value) => {
@@ -50,6 +63,10 @@ const PostScreen = () => {
         }
         if (!formData.title || !formData.title.trim()) {
           Alert.alert('Required Field', 'Please enter a task title');
+          return false;
+        }
+        if (formData.title.trim().length < 5) {
+          Alert.alert('Title Too Short', 'Please provide a more descriptive title (at least 5 characters)');
           return false;
         }
         return true;
@@ -74,6 +91,15 @@ const PostScreen = () => {
           Alert.alert('Required Field', 'Please select a deadline');
           return false;
         }
+        
+        // Validate deadline is in future
+        const deadlineDate = new Date(formData.deadline);
+        const now = new Date();
+        if (deadlineDate <= now) {
+          Alert.alert('Invalid Deadline', 'Deadline must be in the future');
+          return false;
+        }
+        
         if (!formData.budget || !formData.budget.trim()) {
           Alert.alert('Required Field', 'Please enter your budget');
           return false;
@@ -81,6 +107,10 @@ const PostScreen = () => {
         const budgetNumber = parseFloat(formData.budget);
         if (isNaN(budgetNumber) || budgetNumber <= 0) {
           Alert.alert('Invalid Budget', 'Please enter a valid budget amount (greater than $0)');
+          return false;
+        }
+        if (budgetNumber < 5) {
+          Alert.alert('Budget Too Low', 'Minimum budget is $5 per task');
           return false;
         }
         if (budgetNumber > 1000) {
@@ -113,85 +143,158 @@ const PostScreen = () => {
       aiPercentage: 40,
       deadline: null,
       specialInstructions: '',
-      matchingType: 'auto',
+      matchingType: 'manual',
       budget: '',
       paymentMethod: null,
+      urgency: 'medium',
+      estimatedHours: null,
+      tags: [],
+      requesterId: 'user123',
+      requesterName: 'Current User',
     });
     setCurrentStep(1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log('Final form submission:', formData);
     
     try {
-      // Show success message with details
-      const taskSummary = `Task: ${formData.title}
-Subject: ${formData.subject}
-Budget: ${formData.budget}
-Due: ${formData.deadline}
-AI Level: ${formData.aiLevel === 'none' ? 'Human only' : 
-          formData.aiLevel === 'partial' ? `Partial AI (${formData.aiPercentage}%)` : 
-          'Full AI'}`;
-
-      Alert.alert(
-        'Task Posted Successfully! 🎉',
-        `${taskSummary}
-
-Your task has been posted and will be visible to experts shortly. You'll receive notifications when experts apply.`,
-        [
-          {
-            text: 'Post Another Task',
-            onPress: resetForm,
-          },
-          {
-            text: 'Done',
-            style: 'default',
-            onPress: resetForm,
-          },
-        ]
-      );
+      setIsSubmitting(true);
+      
+      // Prepare task data for Firestore
+      const taskData = {
+        ...formData,
+        // Ensure price is formatted correctly
+        price: `$${formData.budget}`,
+        // Generate tags from title and description
+        tags: generateTags(formData.title, formData.description, formData.subject),
+        // Set matching type
+        matchingType: formData.matchingType || 'manual',
+      };
+      
+      // Submit to Firestore
+      const response = await firestoreService.createTask(taskData);
+      
+      if (response.success) {
+        // Show success message
+        Alert.alert(
+          '🎉 Task Posted Successfully!',
+          `Your task "${formData.title}" has been posted to the public feed!\n\n💰 Budget: $${formData.budget}\n📅 Due: ${formData.deadline}\n🎯 Matching: ${formData.matchingType === 'manual' ? 'Manual (Experts will apply)' : 'Auto (We\'ll find an expert)'}\n\nExperts can now see and accept your task.`,
+          [
+            {
+              text: 'View My Tasks',
+              onPress: () => {
+                resetForm();
+                navigation?.navigate('MyTasks');
+              },
+            },
+            {
+              text: 'Post Another Task',
+              onPress: resetForm,
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error submitting task:', error);
       Alert.alert(
-        'Submission Error',
-        'There was an error posting your task. Please check your information and try again.',
-        [{ text: 'OK' }]
+        '❌ Submission Error',
+        error.message || 'There was an error posting your task. Please check your information and try again.',
+        [
+          { text: 'Try Again' },
+          { 
+            text: 'Save Draft', 
+            onPress: () => {
+              // TODO: Implement draft saving
+              Alert.alert('Draft Saved', 'Your task has been saved as a draft.');
+            }
+          }
+        ]
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Remove individual step navigation - let each step handle its own
+  // Generate tags from content
+  const generateTags = (title, description, subject) => {
+    const allText = `${title} ${description}`.toLowerCase();
+    const tags = new Set([subject.toLowerCase()]);
+    
+    // Common academic keywords
+    const keywords = [
+      'homework', 'assignment', 'project', 'essay', 'report', 'analysis',
+      'research', 'coding', 'programming', 'math', 'calculus', 'algebra',
+      'statistics', 'physics', 'chemistry', 'biology', 'writing', 'design',
+      'urgent', 'help', 'tutor', 'solve', 'debug', 'fix', 'create', 'build'
+    ];
+    
+    keywords.forEach(keyword => {
+      if (allText.includes(keyword)) {
+        tags.add(keyword);
+      }
+    });
+    
+    return Array.from(tags).slice(0, 8); // Limit to 8 tags
+  };
+
+  // Navigation handlers
+  const handleNext = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < 5) {
+        setCurrentStep(prev => prev + 1);
+      } else {
+        handleSubmit();
+      }
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    } else {
+      // Navigate back to previous screen
+      navigation?.goBack();
+    }
+  };
+
+  // Progress indicator
   const renderProgressIndicator = () => (
     <View style={styles.progressContainer}>
       <Text style={styles.progressText}>Step {currentStep} of 5</Text>
       <View style={styles.progressBar}>
         <View style={[styles.progressFill, { width: `${(currentStep / 5) * 100}%` }]} />
       </View>
+      
+      {/* Step labels */}
+      <View style={styles.progressLabels}>
+        <Text style={[styles.progressLabel, currentStep >= 1 && styles.progressLabelActive]}>
+          📝 Basic Info
+        </Text>
+        <Text style={[styles.progressLabel, currentStep >= 2 && styles.progressLabelActive]}>
+          📄 Details
+        </Text>
+        <Text style={[styles.progressLabel, currentStep >= 3 && styles.progressLabelActive]}>
+          🤖 AI Level
+        </Text>
+        <Text style={[styles.progressLabel, currentStep >= 4 && styles.progressLabelActive]}>
+          ⏰ Schedule
+        </Text>
+        <Text style={[styles.progressLabel, currentStep >= 5 && styles.progressLabelActive]}>
+          💳 Payment
+        </Text>
+      </View>
     </View>
   );
 
   const renderCurrentStep = () => {
-    console.log('Rendering step:', currentStep);
-    
-    // Pass minimal props - let each step handle navigation internally
     const stepProps = {
       formData,
       updateFormData,
-      onNext: () => {
-        if (validateStep(currentStep)) {
-          if (currentStep < 5) {
-            setCurrentStep(prev => prev + 1);
-          } else {
-            handleSubmit();
-          }
-        }
-      },
-      onBack: () => {
-        if (currentStep > 1) {
-          setCurrentStep(prev => prev - 1);
-        }
-      },
+      onNext: handleNext,
+      onBack: handleBack,
       currentStep,
+      isSubmitting,
     };
 
     try {
@@ -245,9 +348,12 @@ Your task has been posted and will be visible to experts shortly. You'll receive
           📄 {formData.description.length || 0} chars • 🤖 {formData.aiLevel}
           {formData.aiLevel === 'partial' ? ` (${formData.aiPercentage}%)` : ''}
         </Text>
+        <Text style={styles.debugText}>
+          🎯 Matching: {formData.matchingType} • 🔥 {formData.urgency}
+        </Text>
       </View>
       
-      {/* Main Content - Each step handles its own navigation */}
+      {/* Main Content */}
       <View style={styles.content}>
         {renderCurrentStep()}
       </View>
@@ -278,12 +384,28 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: '#e0e0e0',
     borderRadius: 2,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#2e7d32',
     borderRadius: 2,
     minWidth: 8,
+  },
+  progressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressLabel: {
+    fontSize: 10,
+    color: '#999',
+    fontWeight: '500',
+    textAlign: 'center',
+    flex: 1,
+  },
+  progressLabelActive: {
+    color: '#2e7d32',
+    fontWeight: '600',
   },
   debugInfo: {
     backgroundColor: '#e8f5e8',

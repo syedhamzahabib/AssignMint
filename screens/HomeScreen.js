@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+// screens/HomeScreen.js - Enhanced with Manual Matching
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -9,313 +10,452 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 
-// Task Card Component
-const TaskCard = ({ title, subject, price, deadline }) => {
-  const getTagColor = (subject) => {
-    switch (subject.toLowerCase()) {
-      case 'math': return '#3f51b5';
-      case 'coding': return '#00796b';
-      case 'writing': return '#d84315';
-      case 'design': return '#6a1b9a';
-      case 'language': return '#00838f';
-      case 'physics': return '#1976d2';
-      case 'chemistry': return '#f57f17';
-      case 'business': return '#388e3c';
-      default: return '#9e9e9e';
-    }
-  };
+// Import services
+import firestoreService from '../services/FirestoreService';
+import { useAppState } from '../services/AppStateManager';
 
-  return (
-    <View style={styles.card}>
-      <View style={styles.row}>
-        <Text style={styles.title}>{title}</Text>
-        <View style={[styles.tag, { backgroundColor: getTagColor(subject) }]}>
-          <Text style={styles.tagText}>{subject}</Text>
-        </View>
-      </View>
-      <Text style={styles.meta}>Deadline: {deadline}</Text>
-      <Text style={styles.price}>{price}</Text>
-    </View>
-  );
-};
+// Import components
+import ManualMatchTaskCard from '../components/task/ManualMatchTaskCard';
+import LoadingScreen from '../components/common/LoadingScreen';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
-// Sample tasks data
-const dummyTasks = [
-  {
-    id: '1',
-    title: 'Solve 10 Calculus Problems',
-    subject: 'Math',
-    price: '$20',
-    deadline: 'May 25, 11:59 PM',
-  },
-  {
-    id: '2',
-    title: 'Fix bugs in Python script',
-    subject: 'Coding',
-    price: '$30',
-    deadline: 'May 22, 10:00 PM',
-  },
-  {
-    id: '3',
-    title: 'Write 500-word essay on Civil War',
-    subject: 'Writing',
-    price: '$15',
-    deadline: 'May 24, 8:00 PM',
-  },
-  {
-    id: '4',
-    title: 'Design a logo for student group',
-    subject: 'Design',
-    price: '$18',
-    deadline: 'May 26, 6:00 PM',
-  },
-  {
-    id: '5',
-    title: 'Translate English to Spanish document',
-    subject: 'Language',
-    price: '$22',
-    deadline: 'May 27, 3:00 PM',
-  },
-  {
-    id: '6',
-    title: 'Build basic website in HTML/CSS',
-    subject: 'Coding',
-    price: '$40',
-    deadline: 'May 28, 9:00 PM',
-  },
-  {
-    id: '7',
-    title: 'Physics homework problems',
-    subject: 'Physics',
-    price: '$25',
-    deadline: 'May 29, 8:00 PM',
-  },
-  {
-    id: '8',
-    title: 'Chemistry lab report',
-    subject: 'Chemistry',
-    price: '$28',
-    deadline: 'May 30, 6:00 PM',
-  },
-  {
-    id: '9',
-    title: 'Business plan review',
-    subject: 'Business',
-    price: '$35',
-    deadline: 'June 1, 10:00 AM',
-  },
-];
-
-// Extended subject categories for filtering
+// Constants
 const SUBJECTS = [
   { id: 'math', label: '📊 Math', value: 'Math' },
   { id: 'coding', label: '💻 Coding', value: 'Coding' },
   { id: 'writing', label: '✍️ Writing', value: 'Writing' },
   { id: 'design', label: '🎨 Design', value: 'Design' },
   { id: 'language', label: '🌍 Language', value: 'Language' },
-  { id: 'physics', label: '⚛️ Physics', value: 'Physics' },
-  { id: 'chemistry', label: '🧪 Chemistry', value: 'Chemistry' },
-  { id: 'biology', label: '🧬 Biology', value: 'Biology' },
-  { id: 'history', label: '🏛️ History', value: 'History' },
+  { id: 'science', label: '🔬 Science', value: 'Science' },
   { id: 'business', label: '💼 Business', value: 'Business' },
-  { id: 'psychology', label: '🧠 Psychology', value: 'Psychology' },
-  { id: 'statistics', label: '📈 Statistics', value: 'Statistics' },
-  { id: 'philosophy', label: '🤔 Philosophy', value: 'Philosophy' },
-  { id: 'engineering', label: '⚙️ Engineering', value: 'Engineering' },
+  { id: 'other', label: '📋 Other', value: 'Other' },
 ];
 
-const HomeScreen = () => {
-  // State management for filters
+const URGENCY_LEVELS = [
+  { id: 'high', label: '🔥 High Priority', value: 'high' },
+  { id: 'medium', label: '⚡ Medium Priority', value: 'medium' },
+  { id: 'low', label: '🌱 Low Priority', value: 'low' },
+];
+
+const HomeScreen = ({ navigation }) => {
+  // State management
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [acceptingTask, setAcceptingTask] = useState(null);
+  
+  // Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubjects, setSelectedSubjects] = useState([]); // Multi-select subjects
-  const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+  const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [selectedUrgency, setSelectedUrgency] = useState('all');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  
+  // Real-time subscription
+  const [unsubscribe, setUnsubscribe] = useState(null);
+  
+  // App state
+  const { userRole } = useAppState();
+  
+  // Load manual match tasks
+  const loadTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const filters = {
+        subject: selectedSubjects.length === 1 ? selectedSubjects[0] : 'all',
+        urgency: selectedUrgency,
+        maxPrice: maxPrice ? parseFloat(maxPrice) : null,
+      };
+      
+      const response = await firestoreService.getManualMatchTasks(filters);
+      
+      if (response.success) {
+        setTasks(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+      setError(error.message || 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedSubjects, selectedUrgency, maxPrice]);
 
-  // Filter subjects based on search query in the modal
-  const filteredSubjects = useMemo(() => {
-    if (!subjectSearchQuery.trim()) return SUBJECTS;
+  // Set up real-time subscription
+  useEffect(() => {
+    console.log('🔄 Setting up real-time task subscription...');
     
-    const query = subjectSearchQuery.toLowerCase();
-    return SUBJECTS.filter(subject => 
-      subject.label.toLowerCase().includes(query) ||
-      subject.value.toLowerCase().includes(query)
-    );
-  }, [subjectSearchQuery]);
+    const subscription = firestoreService.subscribeToManualMatchTasks((response) => {
+      if (response.success) {
+        setTasks(response.data);
+        setError(null);
+      } else {
+        setError(response.message || 'Failed to get real-time updates');
+      }
+      setLoading(false);
+    });
+    
+    setUnsubscribe(() => subscription);
+    
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        console.log('🔄 Cleaning up task subscription');
+        subscription();
+      }
+    };
+  }, []);
 
-  // Main filtering logic for tasks
+  // Refresh tasks
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTasks();
+    setRefreshing(false);
+  }, [loadTasks]);
+
+  // Handle task acceptance
+  const handleAcceptTask = useCallback(async (task) => {
+    try {
+      setAcceptingTask(task.id);
+      
+      // Show confirmation dialog
+      Alert.alert(
+        '🎯 Accept Task',
+        `Do you want to accept "${task.title}"?\n\nPrice: ${task.price}\nDeadline: ${new Date(task.deadline).toLocaleDateString()}\n\n⚠️ Once accepted, you'll be responsible for completing this task.`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => setAcceptingTask(null)
+          },
+          {
+            text: 'Accept Task',
+            style: 'default',
+            onPress: async () => {
+              try {
+                // Replace with actual expert ID and name from auth
+                const expertId = 'expert123'; // Get from auth context
+                const expertName = 'Current Expert'; // Get from user profile
+                
+                const response = await firestoreService.acceptTask(
+                  task.id, 
+                  expertId, 
+                  expertName
+                );
+                
+                if (response.success) {
+                  Alert.alert(
+                    '🎉 Task Accepted!',
+                    response.message,
+                    [
+                      {
+                        text: 'View My Tasks',
+                        onPress: () => navigation?.navigate('MyTasks')
+                      },
+                      {
+                        text: 'Continue Browsing',
+                        style: 'cancel'
+                      }
+                    ]
+                  );
+                }
+              } catch (acceptError) {
+                Alert.alert(
+                  '❌ Accept Failed',
+                  acceptError.message || 'Failed to accept task. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              } finally {
+                setAcceptingTask(null);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error in accept task handler:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+      setAcceptingTask(null);
+    }
+  }, [navigation]);
+
+  // Handle task details view
+  const handleViewTask = useCallback((task) => {
+    // Increment view count
+    firestoreService.incrementTaskViews(task.id);
+    
+    // Navigate to task details
+    if (navigation) {
+      navigation.navigate('TaskDetails', {
+        taskId: task.id,
+        role: 'expert',
+        task: task
+      });
+    }
+  }, [navigation]);
+
+  // Filter tasks based on search and filters
   const filteredTasks = useMemo(() => {
-    let filtered = [...dummyTasks];
+    let filtered = [...tasks];
 
-    // Apply search filter - searches through title and subject
+    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(task => 
         task.title.toLowerCase().includes(query) ||
-        task.subject.toLowerCase().includes(query)
+        task.subject.toLowerCase().includes(query) ||
+        task.description.toLowerCase().includes(query)
       );
     }
 
-    // Apply subject filter (if any subjects selected)
+    // Apply subject filter (client-side for real-time updates)
     if (selectedSubjects.length > 0) {
-      const selectedSubjectValues = selectedSubjects.map(id => {
-        const subject = SUBJECTS.find(s => s.id === id);
-        return subject ? subject.value.toLowerCase() : '';
-      }).filter(Boolean);
-
       filtered = filtered.filter(task => 
-        selectedSubjectValues.includes(task.subject.toLowerCase())
+        selectedSubjects.includes(task.subject.toLowerCase())
       );
     }
+
+    // Apply urgency filter (client-side)
+    if (selectedUrgency !== 'all') {
+      filtered = filtered.filter(task => task.urgency === selectedUrgency);
+    }
+
+    // Apply price filter (client-side)
+    if (maxPrice) {
+      const maxPriceNum = parseFloat(maxPrice);
+      filtered = filtered.filter(task => {
+        const taskPrice = parseFloat(task.price.replace('$', ''));
+        return taskPrice <= maxPriceNum;
+      });
+    }
+
+    // Sort by creation date (newest first)
+    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return filtered;
-  }, [searchQuery, selectedSubjects]);
+  }, [tasks, searchQuery, selectedSubjects, selectedUrgency, maxPrice]);
 
-  // Toggle subject selection (multi-select)
-  const toggleSubjectSelection = (subjectId) => {
+  // Toggle subject selection
+  const toggleSubjectSelection = useCallback((subjectValue) => {
     setSelectedSubjects(prev => {
-      if (prev.includes(subjectId)) {
-        // Remove if already selected
-        return prev.filter(id => id !== subjectId);
+      const lowercaseValue = subjectValue.toLowerCase();
+      if (prev.includes(lowercaseValue)) {
+        return prev.filter(s => s !== lowercaseValue);
       } else {
-        // Add if not selected
-        return [...prev, subjectId];
+        return [...prev, lowercaseValue];
       }
     });
-  };
-
-  // Remove specific subject from selection
-  const removeSubject = (subjectId) => {
-    setSelectedSubjects(prev => prev.filter(id => id !== subjectId));
-  };
+  }, []);
 
   // Clear all filters
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSearchQuery('');
     setSelectedSubjects([]);
-  };
-
-  // Clear only subject filters
-  const clearSubjectFilters = () => {
-    setSelectedSubjects([]);
-  };
+    setSelectedUrgency('all');
+    setMaxPrice('');
+  }, []);
 
   // Check if any filters are active
-  const hasActiveFilters = searchQuery.trim() || selectedSubjects.length > 0;
+  const hasActiveFilters = searchQuery.trim() || selectedSubjects.length > 0 || selectedUrgency !== 'all' || maxPrice.trim();
 
-  // Get selected subjects data for display
-  const getSelectedSubjectsData = () => {
-    return selectedSubjects.map(id => SUBJECTS.find(s => s.id === id)).filter(Boolean);
-  };
+  // Render task card
+  const renderTaskCard = useCallback(({ item }) => (
+    <ManualMatchTaskCard
+      task={item}
+      onAccept={handleAcceptTask}
+      onViewDetails={handleViewTask}
+      isAccepting={acceptingTask === item.id}
+    />
+  ), [handleAcceptTask, handleViewTask, acceptingTask]);
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerRow}>
-          <Text style={styles.header}>📋 Latest Tasks</Text>
-          {hasActiveFilters && (
-            <TouchableOpacity onPress={clearAllFilters} style={styles.clearButton}>
-              <Text style={styles.clearButtonText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.resultCount}>
-          {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
-        </Text>
-      </View>
-
-      {/* Search Bar with Filter Icon */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search tasks..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity 
-              onPress={() => setSearchQuery('')}
-              style={styles.clearSearchButton}
-            >
-              <Text style={styles.clearSearchText}>✕</Text>
-            </TouchableOpacity>
-          )}
-          
-          {/* Filter Icon Button */}
-          <TouchableOpacity
-            onPress={() => setShowSubjectModal(true)}
-            style={[
-              styles.filterIconButton,
-              selectedSubjects.length > 0 && styles.filterIconButtonActive
-            ]}
+  // Show different content for requesters
+  if (userRole === 'requester') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.roleMessageContainer}>
+          <Text style={styles.roleMessageIcon}>👑</Text>
+          <Text style={styles.roleMessageTitle}>Requester View</Text>
+          <Text style={styles.roleMessageText}>
+            As a requester, you don't see the task feed. Your posted tasks will appear in the "My Tasks" section.
+          </Text>
+          <TouchableOpacity 
+            style={styles.roleMessageButton}
+            onPress={() => navigation?.navigate('MyTasks')}
           >
-            <Text style={[
-              styles.filterIcon,
-              selectedSubjects.length > 0 && styles.filterIconActive
-            ]}>
-              ⚙️
-            </Text>
-            {selectedSubjects.length > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{selectedSubjects.length}</Text>
-              </View>
-            )}
+            <Text style={styles.roleMessageButtonText}>View My Tasks</Text>
           </TouchableOpacity>
         </View>
       </View>
+    );
+  }
 
-      {/* Active Filters Display (Chips) */}
-      {selectedSubjects.length > 0 && (
-        <View style={styles.activeFiltersContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.activeFiltersContent}
-          >
-            {getSelectedSubjectsData().map((subject) => (
-              <View key={subject.id} style={styles.filterChip}>
-                <Text style={styles.filterChipText}>{subject.label}</Text>
-                <TouchableOpacity
-                  onPress={() => removeSubject(subject.id)}
-                  style={styles.filterChipRemove}
-                >
-                  <Text style={styles.filterChipRemoveText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-            
-            {/* Clear all subjects button */}
-            <TouchableOpacity 
-              onPress={clearSubjectFilters}
-              style={styles.clearFiltersChip}
-            >
-              <Text style={styles.clearFiltersChipText}>Clear All</Text>
-            </TouchableOpacity>
-          </ScrollView>
+  // Loading state
+  if (loading && tasks.length === 0) {
+    return (
+      <LoadingScreen 
+        message="Loading available tasks..." 
+        submessage="Finding the perfect assignments for you"
+      />
+    );
+  }
+
+  // Error state
+  if (error && tasks.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>❌</Text>
+          <Text style={styles.errorTitle}>Failed to Load Tasks</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadTasks}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
+    );
+  }
 
-      {/* Task List */}
-      <FlatList
-        data={filteredTasks}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <TaskCard {...item} />}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
+  return (
+    <ErrorBoundary>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.headerContainer}>
+          <View style={styles.headerRow}>
+            <Text style={styles.header}>🎯 Available Tasks</Text>
+            {hasActiveFilters && (
+              <TouchableOpacity onPress={clearAllFilters} style={styles.clearButton}>
+                <Text style={styles.clearButtonText}>Clear All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.resultCount}>
+            {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} available
+            {tasks.length !== filteredTasks.length && ` (${tasks.length} total)`}
+          </Text>
+        </View>
+
+        {/* Search and Filter Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Text style={styles.searchIcon}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search tasks..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                style={styles.clearSearchButton}
+              >
+                <Text style={styles.clearSearchText}>✕</Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* Filter Button */}
+            <TouchableOpacity
+              onPress={() => setShowFilterModal(true)}
+              style={[
+                styles.filterButton,
+                hasActiveFilters && styles.filterButtonActive
+              ]}
+            >
+              <Text style={[
+                styles.filterIcon,
+                hasActiveFilters && styles.filterIconActive
+              ]}>
+                ⚙️
+              </Text>
+              {hasActiveFilters && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>
+                    {[selectedSubjects.length > 0, selectedUrgency !== 'all', maxPrice.trim()].filter(Boolean).length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Active Filters Display */}
+        {hasActiveFilters && (
+          <View style={styles.activeFiltersContainer}>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.activeFiltersContent}
+            >
+              {selectedSubjects.map((subject) => {
+                const subjectData = SUBJECTS.find(s => s.value.toLowerCase() === subject);
+                return (
+                  <View key={subject} style={styles.filterChip}>
+                    <Text style={styles.filterChipText}>
+                      {subjectData?.label || subject}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => toggleSubjectSelection(subjectData?.value || subject)}
+                      style={styles.filterChipRemove}
+                    >
+                      <Text style={styles.filterChipRemoveText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+              
+              {selectedUrgency !== 'all' && (
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>
+                    {URGENCY_LEVELS.find(u => u.value === selectedUrgency)?.label || selectedUrgency}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedUrgency('all')}
+                    style={styles.filterChipRemove}
+                  >
+                    <Text style={styles.filterChipRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              {maxPrice.trim() && (
+                <View style={styles.filterChip}>
+                  <Text style={styles.filterChipText}>
+                    Max ${maxPrice}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setMaxPrice('')}
+                    style={styles.filterChipRemove}
+                  >
+                    <Text style={styles.filterChipRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Task List */}
+        {filteredTasks.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🔍</Text>
-            <Text style={styles.emptyTitle}>No tasks found</Text>
+            <Text style={styles.emptyIcon}>
+              {hasActiveFilters ? '🔍' : '📭'}
+            </Text>
+            <Text style={styles.emptyTitle}>
+              {hasActiveFilters ? 'No tasks match your filters' : 'No tasks available'}
+            </Text>
             <Text style={styles.emptyText}>
               {hasActiveFilters 
-                ? 'Try adjusting your search or filters'
-                : 'No tasks available at the moment'
+                ? 'Try adjusting your search criteria or check back later'
+                : 'Check back soon for new assignment opportunities!'
               }
             </Text>
             {hasActiveFilters && (
@@ -324,111 +464,170 @@ const HomeScreen = () => {
               </TouchableOpacity>
             )}
           </View>
-        }
-      />
-
-      {/* Subject Selection Modal */}
-      <Modal
-        visible={showSubjectModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowSubjectModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowSubjectModal(false)}
-        >
-          <Pressable style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter by Subjects</Text>
-              <View style={styles.modalHeaderRight}>
-                <Text style={styles.selectedCountText}>
-                  {selectedSubjects.length} selected
+        ) : (
+          <FlatList
+            data={filteredTasks}
+            keyExtractor={(item) => item.id}
+            renderItem={renderTaskCard}
+            contentContainerStyle={styles.taskList}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#2e7d32']}
+                tintColor="#2e7d32"
+              />
+            }
+            ListHeaderComponent={
+              <View style={styles.listHeader}>
+                <Text style={styles.instructionText}>
+                  💡 Pull down to refresh • Tap to view details • Accept to claim
                 </Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Filter Modal */}
+        <Modal
+          visible={showFilterModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFilterModal(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowFilterModal(false)}
+          >
+            <Pressable style={styles.modalContent}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filter Tasks</Text>
                 <TouchableOpacity
-                  onPress={() => setShowSubjectModal(false)}
+                  onPress={() => setShowFilterModal(false)}
                   style={styles.modalCloseButton}
                 >
                   <Text style={styles.modalCloseText}>Done</Text>
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Action Buttons */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                onPress={clearSubjectFilters}
-                style={styles.clearAllButton}
-              >
-                <Text style={styles.clearAllButtonText}>Clear All</Text>
-              </TouchableOpacity>
-              
-              {/* Search Bar in Modal */}
-              <View style={styles.modalSearchBar}>
-                <Text style={styles.searchIcon}>🔍</Text>
-                <TextInput
-                  style={styles.modalSearchInput}
-                  placeholder="Search subjects..."
-                  placeholderTextColor="#999"
-                  value={subjectSearchQuery}
-                  onChangeText={setSubjectSearchQuery}
-                />
-                {subjectSearchQuery.length > 0 && (
-                  <TouchableOpacity 
-                    onPress={() => setSubjectSearchQuery('')}
-                    style={styles.clearSearchButton}
-                  >
-                    <Text style={styles.clearSearchText}>✕</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+              <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+                {/* Subjects Filter */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>📚 Subjects</Text>
+                  <View style={styles.subjectGrid}>
+                    {SUBJECTS.map((subject) => {
+                      const isSelected = selectedSubjects.includes(subject.value.toLowerCase());
+                      return (
+                        <TouchableOpacity
+                          key={subject.id}
+                          style={[
+                            styles.subjectItem,
+                            isSelected && styles.subjectItemSelected
+                          ]}
+                          onPress={() => toggleSubjectSelection(subject.value)}
+                        >
+                          <Text style={[
+                            styles.subjectItemText,
+                            isSelected && styles.subjectItemTextSelected
+                          ]}>
+                            {subject.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
 
-            {/* Subject List */}
-            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
-              {filteredSubjects.map((subject) => {
-                const isSelected = selectedSubjects.includes(subject.id);
-                return (
+                {/* Urgency Filter */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>⚡ Priority Level</Text>
                   <TouchableOpacity
-                    key={subject.id}
                     style={[
-                      styles.modalItem,
-                      isSelected && styles.modalItemSelected
+                      styles.urgencyItem,
+                      selectedUrgency === 'all' && styles.urgencyItemSelected
                     ]}
-                    onPress={() => toggleSubjectSelection(subject.id)}
+                    onPress={() => setSelectedUrgency('all')}
                   >
-                    {/* Checkbox */}
-                    <View style={[
-                      styles.checkbox,
-                      isSelected && styles.checkboxSelected
-                    ]}>
-                      {isSelected && (
-                        <Text style={styles.checkboxCheck}>✓</Text>
-                      )}
-                    </View>
-                    
                     <Text style={[
-                      styles.modalItemText,
-                      isSelected && styles.modalItemTextSelected
+                      styles.urgencyItemText,
+                      selectedUrgency === 'all' && styles.urgencyItemTextSelected
                     ]}>
-                      {subject.label}
+                      📋 All Priorities
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
-              
-              {filteredSubjects.length === 0 && (
-                <View style={styles.noResultsContainer}>
-                  <Text style={styles.noResultsText}>No subjects found</Text>
-                  <Text style={styles.noResultsSubtext}>Try a different search term</Text>
+                  
+                  {URGENCY_LEVELS.map((urgency) => {
+                    const isSelected = selectedUrgency === urgency.value;
+                    return (
+                      <TouchableOpacity
+                        key={urgency.id}
+                        style={[
+                          styles.urgencyItem,
+                          isSelected && styles.urgencyItemSelected
+                        ]}
+                        onPress={() => setSelectedUrgency(urgency.value)}
+                      >
+                        <Text style={[
+                          styles.urgencyItemText,
+                          isSelected && styles.urgencyItemTextSelected
+                        ]}>
+                          {urgency.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-              )}
-            </ScrollView>
+
+                {/* Price Filter */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterSectionTitle}>💰 Maximum Price</Text>
+                  <View style={styles.priceInputContainer}>
+                    <Text style={styles.priceSymbol}>$</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      placeholder="100"
+                      placeholderTextColor="#999"
+                      keyboardType="numeric"
+                      value={maxPrice}
+                      onChangeText={(text) => {
+                        const cleanText = text.replace(/[^0-9.]/g, '');
+                        setMaxPrice(cleanText);
+                      }}
+                      maxLength={6}
+                    />
+                  </View>
+                  {maxPrice.trim() && (
+                    <Text style={styles.priceHint}>
+                      Show tasks up to ${maxPrice}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Clear Filters Button */}
+                <TouchableOpacity 
+                  style={styles.clearFiltersButton}
+                  onPress={clearAllFilters}
+                >
+                  <Text style={styles.clearFiltersButtonText}>Clear All Filters</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
+        </Modal>
+
+        {/* Loading overlay for task acceptance */}
+        {acceptingTask && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingCard}>
+              <ActivityIndicator size="large" color="#2e7d32" />
+              <Text style={styles.loadingText}>Accepting task...</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </ErrorBoundary>
   );
 };
 
@@ -437,10 +636,95 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f4f5f9',
   },
+  
+  // Role message for requesters
+  roleMessageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  roleMessageIcon: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  roleMessageTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  roleMessageText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+    maxWidth: 320,
+  },
+  roleMessageButton: {
+    backgroundColor: '#2e7d32',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#2e7d32',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  roleMessageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Error state
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  retryButton: {
+    backgroundColor: '#2e7d32',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Header
   headerContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
   },
   headerRow: {
     flexDirection: 'row',
@@ -450,7 +734,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#111',
   },
   clearButton: {
@@ -469,23 +753,21 @@ const styles = StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
   },
+  
+  // Search and filter
   searchContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
   },
   searchBar: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e5e5',
+    borderColor: '#e9ecef',
   },
   searchIcon: {
     fontSize: 16,
@@ -507,14 +789,14 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: 'bold',
   },
-  filterIconButton: {
+  filterButton: {
     padding: 8,
     borderRadius: 8,
     marginLeft: 4,
     position: 'relative',
   },
-  filterIconButtonActive: {
-    backgroundColor: '#f8fff8',
+  filterButtonActive: {
+    backgroundColor: '#e8f5e8',
   },
   filterIcon: {
     fontSize: 18,
@@ -539,9 +821,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  
+  // Active filters
   activeFiltersContainer: {
     paddingHorizontal: 16,
     paddingBottom: 12,
+    backgroundColor: '#fff',
   },
   activeFiltersContent: {
     paddingRight: 16,
@@ -577,89 +862,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  clearFiltersChip: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  
+  // Task list
+  listHeader: {
+    paddingVertical: 8,
   },
-  clearFiltersChipText: {
-    fontSize: 14,
-    color: '#666',
+  instructionText: {
+    fontSize: 12,
+    color: '#2e7d32',
+    textAlign: 'center',
     fontWeight: '500',
   },
-  list: {
-    paddingBottom: 16,
+  taskList: {
+    paddingBottom: 20,
   },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 14,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#222',
-    flexShrink: 1,
-  },
-  meta: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 6,
-  },
-  price: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#2e7d32',
-    marginTop: 8,
-  },
-  tag: {
-    borderRadius: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
-    textTransform: 'capitalize',
-  },
+  
+  // Empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
     paddingHorizontal: 40,
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 64,
+    marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   emptyButton: {
     backgroundColor: '#2e7d32',
@@ -672,6 +913,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -688,8 +931,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -697,15 +939,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111',
-  },
-  modalHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectedCountText: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 16,
   },
   modalCloseButton: {
     backgroundColor: '#2e7d32',
@@ -718,97 +951,142 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  modalActions: {
+  modalScrollView: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
-  clearAllButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+  
+  // Filter sections
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 12,
   },
-  clearAllButtonText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '500',
+  
+  // Subject filter
+  subjectGrid: {
+    gap: 8,
   },
-  modalSearchBar: {
+  subjectItem: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  modalSearchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111',
-    paddingVertical: 10,
-  },
-  modalList: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    borderRadius: 8,
-    marginVertical: 2,
-  },
-  modalItemSelected: {
-    backgroundColor: '#f8fff8',
-    borderBottomColor: '#e8f5e8',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 2,
-    borderColor: '#ddd',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: 'transparent',
   },
-  checkboxSelected: {
-    backgroundColor: '#2e7d32',
+  subjectItemSelected: {
+    backgroundColor: '#e8f5e8',
     borderColor: '#2e7d32',
   },
-  checkboxCheck: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  subjectItemText: {
+    fontSize: 15,
+    color: '#666',
+    fontWeight: '500',
   },
-  modalItemText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
-  modalItemTextSelected: {
+  subjectItemTextSelected: {
     color: '#2e7d32',
     fontWeight: '600',
   },
-  noResultsContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
+  
+  // Urgency filter
+  urgencyItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  noResultsText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+  urgencyItemSelected: {
+    backgroundColor: '#e8f5e8',
+    borderColor: '#2e7d32',
   },
-  noResultsSubtext: {
-    fontSize: 14,
+  urgencyItemText: {
+    fontSize: 15,
     color: '#666',
+    fontWeight: '500',
+  },
+  urgencyItemTextSelected: {
+    color: '#2e7d32',
+    fontWeight: '600',
+  },
+  
+  // Price filter
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  priceSymbol: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2e7d32',
+    marginRight: 8,
+  },
+  priceInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#111',
+    fontWeight: '600',
+  },
+  priceHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  
+  // Clear filters button
+  clearFiltersButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  clearFiltersButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  
+  // Loading overlay
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#333',
+    marginTop: 16,
+    fontWeight: '500',
   },
 });
 

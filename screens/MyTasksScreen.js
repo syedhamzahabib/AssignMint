@@ -1,4 +1,4 @@
-// screens/MyTasksScreen.js - Updated with UploadDelivery navigation
+// screens/MyTasksScreen.js - Enhanced with Manual Match support
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -12,74 +12,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-// Import existing components
-import TaskCard from '../components/TaskCard';
+// Import services
+import firestoreService from '../services/FirestoreService';
+import { useAppState } from '../services/AppStateManager';
+
+// Import components
+import EnhancedTaskCard from '../components/task/EnhancedTaskCard';
 import FilterModal from '../components/FilterModal';
+import LoadingScreen from '../components/common/LoadingScreen';
 
-// Import APIs
-import { TasksAPI } from '../api/tasks';
-
-// Mock data fallback
-const mockRequesterTasks = [
-  {
-    id: 'req_1',
-    title: 'Solve 10 Calculus Problems',
-    dueDate: '2025-05-25',
-    status: 'in_progress',
-    expertName: 'Sarah Chen',
-    subject: 'Math',
-    price: '$20',
-    urgency: 'medium',
-    progress: 65,
-  },
-  {
-    id: 'req_2',
-    title: 'Fix bugs in Python script',
-    dueDate: '2025-05-22',
-    status: 'pending_review',
-    expertName: 'Alex Kumar',
-    subject: 'Coding',
-    price: '$30',
-    urgency: 'high',
-    progress: 100,
-  },
-  {
-    id: 'req_3',
-    title: 'Write 500-word essay on Civil War',
-    dueDate: '2025-05-24',
-    status: 'completed',
-    expertName: 'Emily Rodriguez',
-    subject: 'Writing',
-    price: '$15',
-    urgency: 'low',
-    progress: 100,
-  },
-];
-
-const mockExpertTasks = [
-  {
-    id: 'exp_1',
-    title: 'Translate English to Spanish document',
-    dueDate: '2025-05-27',
-    status: 'working',
-    requesterName: 'John Smith',
-    subject: 'Language',
-    price: '$22',
-    progress: 45,
-  },
-  {
-    id: 'exp_2',
-    title: 'Build basic website in HTML/CSS',
-    dueDate: '2025-05-28',
-    status: 'delivered',
-    requesterName: 'Maria Garcia',
-    subject: 'Coding',
-    price: '$40',
-    progress: 100,
-  },
-];
-
-const RoleToggle = ({ activeRole, onRoleChange }) => (
+const RoleToggle = ({ activeRole, onRoleChange, requesterStats, expertStats }) => (
   <View style={styles.tabContainer}>
     <TouchableOpacity
       style={[styles.roleTab, activeRole === 'requester' && styles.activeRoleTab]}
@@ -88,6 +30,9 @@ const RoleToggle = ({ activeRole, onRoleChange }) => (
       <Text style={[styles.roleTabText, activeRole === 'requester' && styles.activeRoleTabText]}>
         Requester ✅
       </Text>
+      <View style={styles.roleTabBadge}>
+        <Text style={styles.roleTabBadgeText}>{requesterStats.total}</Text>
+      </View>
     </TouchableOpacity>
     <TouchableOpacity
       style={[styles.roleTab, activeRole === 'expert' && styles.activeRoleTab]}
@@ -96,11 +41,14 @@ const RoleToggle = ({ activeRole, onRoleChange }) => (
       <Text style={[styles.roleTabText, activeRole === 'expert' && styles.activeRoleTabText]}>
         Expert 🎓
       </Text>
+      <View style={styles.roleTabBadge}>
+        <Text style={styles.roleTabBadgeText}>{expertStats.total}</Text>
+      </View>
     </TouchableOpacity>
   </View>
 );
 
-const StatsCards = ({ stats }) => (
+const StatsCards = ({ stats, role }) => (
   <View style={styles.statsContainer}>
     <View style={styles.statCard}>
       <Text style={styles.statNumber}>{stats.active || 0}</Text>
@@ -121,16 +69,32 @@ const StatsCards = ({ stats }) => (
   </View>
 );
 
-const EmptyState = ({ role }) => (
+const EmptyState = ({ role, onCreateTask, onBrowseTasks }) => (
   <View style={styles.emptyContainer}>
-    <Text style={styles.emptyIcon}>📭</Text>
-    <Text style={styles.emptyTitle}>No tasks found</Text>
+    <Text style={styles.emptyIcon}>
+      {role === 'requester' ? '📝' : '🔍'}
+    </Text>
+    <Text style={styles.emptyTitle}>
+      {role === 'requester' ? 'No tasks posted yet' : 'No tasks accepted yet'}
+    </Text>
     <Text style={styles.emptyText}>
       {role === 'requester' 
-        ? "You haven't posted any tasks yet"
-        : "You haven't accepted any tasks yet"
+        ? "Start by posting your first assignment"
+        : "Browse available tasks and accept one to get started"
       }
     </Text>
+    
+    <View style={styles.emptyActions}>
+      {role === 'requester' ? (
+        <TouchableOpacity style={styles.emptyButton} onPress={onCreateTask}>
+          <Text style={styles.emptyButtonText}>➕ Post Your First Task</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.emptyButton} onPress={onBrowseTasks}>
+          <Text style={styles.emptyButtonText}>🎯 Browse Available Tasks</Text>
+        </TouchableOpacity>
+      )}
+    </View>
   </View>
 );
 
@@ -143,9 +107,12 @@ const MyTasksScreen = ({ navigation }) => {
     completed: 0,
     overdue: 0
   });
+  const [requesterStats, setRequesterStats] = useState({ total: 0 });
+  const [expertStats, setExpertStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
     sortBy: 'due_date_asc',
@@ -153,69 +120,151 @@ const MyTasksScreen = ({ navigation }) => {
     search: ''
   });
 
-  const loadTasks = useCallback(async () => {
+  // Real-time subscriptions
+  const [requesterUnsubscribe, setRequesterUnsubscribe] = useState(null);
+  const [expertUnsubscribe, setExpertUnsubscribe] = useState(null);
+
+  // Mock user ID - replace with actual auth
+  const userId = 'user123';
+
+  // Load tasks for specific role
+  const loadTasks = useCallback(async (role = userRole) => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Try to use the API, fallback to mock data
-      let tasksData;
-      try {
-        const response = await TasksAPI.getTasksByRole(userRole);
-        tasksData = response.success ? response.data : [];
-      } catch (error) {
-        console.log('API failed, using mock data:', error);
-        tasksData = userRole === 'requester' ? mockRequesterTasks : mockExpertTasks;
+      const response = await firestoreService.getTasksByUser(userId, role);
+      
+      if (response.success) {
+        setTasks(response.data);
+        
+        // Calculate stats
+        const newStats = calculateStats(response.data);
+        setStats(newStats);
+        
+        // Update role-specific stats
+        if (role === 'requester') {
+          setRequesterStats({ total: response.data.length, ...newStats });
+        } else {
+          setExpertStats({ total: response.data.length, ...newStats });
+        }
       }
-      
-      setTasks(tasksData);
-      
-      // Calculate stats
-      const newStats = {
-        total: tasksData.length,
-        active: tasksData.filter(t => 
-          ['in_progress', 'working', 'pending_review', 'awaiting_expert'].includes(t.status)
-        ).length,
-        completed: tasksData.filter(t => 
-          ['completed', 'payment_received'].includes(t.status)
-        ).length,
-        overdue: tasksData.filter(t => {
-          const due = new Date(t.dueDate);
-          const now = new Date();
-          return due < now && !['completed', 'payment_received', 'cancelled'].includes(t.status);
-        }).length,
-      };
-      
-      setStats(newStats);
     } catch (error) {
-      console.error('Failed to load tasks:', error);
-      Alert.alert('Error', 'Failed to load tasks');
+      console.error(`Failed to load ${role} tasks:`, error);
+      setError(error.message || `Failed to load ${role} tasks`);
     } finally {
       setLoading(false);
     }
-  }, [userRole]);
+  }, [userRole, userId]);
 
+  // Calculate statistics from tasks
+  const calculateStats = useCallback((taskList) => {
+    const total = taskList.length;
+    const active = taskList.filter(t => 
+      ['in_progress', 'working', 'pending_review', 'awaiting_expert'].includes(t.status)
+    ).length;
+    const completed = taskList.filter(t => 
+      ['completed', 'payment_received'].includes(t.status)
+    ).length;
+    const overdue = taskList.filter(t => {
+      if (!t.deadline) return false;
+      const due = new Date(t.deadline);
+      const now = new Date();
+      return due < now && !['completed', 'payment_received', 'cancelled'].includes(t.status);
+    }).length;
+    
+    return { total, active, completed, overdue };
+  }, []);
+
+  // Set up real-time subscriptions for both roles
+  useEffect(() => {
+    console.log('🔄 Setting up real-time subscriptions for My Tasks...');
+    
+    // Requester tasks subscription
+    const reqSub = firestoreService.subscribeToUserTasks(userId, 'requester', (response) => {
+      if (response.success) {
+        const newStats = calculateStats(response.data);
+        setRequesterStats({ total: response.data.length, ...newStats });
+        
+        // Update current view if viewing requester tasks
+        if (userRole === 'requester') {
+          setTasks(response.data);
+          setStats(newStats);
+          setError(null);
+        }
+      } else {
+        console.error('Requester tasks subscription error:', response.message);
+      }
+    });
+    
+    // Expert tasks subscription
+    const expSub = firestoreService.subscribeToUserTasks(userId, 'expert', (response) => {
+      if (response.success) {
+        const newStats = calculateStats(response.data);
+        setExpertStats({ total: response.data.length, ...newStats });
+        
+        // Update current view if viewing expert tasks
+        if (userRole === 'expert') {
+          setTasks(response.data);
+          setStats(newStats);
+          setError(null);
+        }
+      } else {
+        console.error('Expert tasks subscription error:', response.message);
+      }
+    });
+    
+    setRequesterUnsubscribe(() => reqSub);
+    setExpertUnsubscribe(() => expSub);
+    
+    // Cleanup subscriptions
+    return () => {
+      if (reqSub) {
+        console.log('🔄 Cleaning up requester tasks subscription');
+        reqSub();
+      }
+      if (expSub) {
+        console.log('🔄 Cleaning up expert tasks subscription');
+        expSub();
+      }
+    };
+  }, [userId, userRole, calculateStats]);
+
+  // Handle role change
+  const handleRoleChange = useCallback((newRole) => {
+    if (newRole !== userRole) {
+      setUserRole(newRole);
+      setError(null);
+      
+      // Update current view with cached data
+      if (newRole === 'requester' && requesterStats.total > 0) {
+        // Will be updated by subscription
+      } else if (newRole === 'expert' && expertStats.total > 0) {
+        // Will be updated by subscription
+      } else {
+        // Load fresh data if no cache
+        loadTasks(newRole);
+      }
+    }
+  }, [userRole, requesterStats.total, expertStats.total, loadTasks]);
+
+  // Handle refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadTasks();
     setRefreshing(false);
   }, [loadTasks]);
 
-  const handleRoleChange = useCallback((newRole) => {
-    if (newRole !== userRole) {
-      setUserRole(newRole);
-    }
-  }, [userRole]);
-
+  // Handle task press
   const handleTaskPress = useCallback((task) => {
-    // Navigate to TaskDetailsScreen with the task data
-    navigation.navigate('TaskDetails', {
+    navigation?.navigate('TaskDetails', {
       taskId: task.id,
       role: userRole,
       task: task
     });
   }, [navigation, userRole]);
 
-  // UPDATED: Enhanced task action handler with Upload Delivery option
+  // Handle task actions
   const handleTaskAction = useCallback((task) => {
     const actions = [
       { text: 'Cancel', style: 'cancel' },
@@ -227,96 +276,149 @@ const MyTasksScreen = ({ navigation }) => {
 
     // Add role-specific actions
     if (userRole === 'expert') {
-      // Expert-specific actions
       if (task.status === 'working') {
         actions.splice(1, 0, {
           text: '📤 Upload Delivery',
-          onPress: () => navigation.navigate('UploadDelivery', { task })
+          onPress: () => navigation?.navigate('UploadDelivery', { task })
         });
       } else if (task.status === 'revision_requested') {
         actions.splice(1, 0, {
           text: '🔄 Submit Revision',
-          onPress: () => navigation.navigate('UploadDelivery', { task })
+          onPress: () => navigation?.navigate('UploadDelivery', { task })
         });
       }
     } else {
-      // Requester-specific actions
+      // Requester actions
       if (task.status === 'pending_review') {
         actions.splice(1, 0, {
           text: '✅ Review & Approve',
-          onPress: () => Alert.alert('Review Task', `Review functionality for "${task.title}" would open here!`)
+          onPress: () => navigation?.navigate('TaskAction', { taskId: task.id, action: 'review', task })
         });
         actions.splice(2, 0, {
           text: '🚩 Dispute',
-          onPress: () => Alert.alert('Dispute Task', `Dispute functionality for "${task.title}" would open here!`)
+          onPress: () => navigation?.navigate('TaskAction', { taskId: task.id, action: 'dispute', task })
         });
       } else if (task.status === 'awaiting_expert') {
         actions.splice(1, 0, {
           text: '✏️ Edit Task',
-          onPress: () => Alert.alert('Edit Task', `Edit functionality for "${task.title}" coming soon!`)
+          onPress: () => Alert.alert('Edit Task', 'Task editing feature coming soon!')
         });
       }
     }
 
     Alert.alert(
       `🎯 ${task.title}`,
-      `Status: ${task.status}\nPrice: ${task.price}\nDue: ${task.dueDate}\n\nSelect an action:`,
+      `Status: ${task.status}\nPrice: ${task.price}\n${
+        userRole === 'requester' && task.assignedExpertName 
+          ? `Expert: ${task.assignedExpertName}\n` 
+          : userRole === 'expert' && task.requesterName 
+            ? `Requester: ${task.requesterName}\n` 
+            : ''
+      }Due: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}\n\nSelect an action:`,
       actions
     );
   }, [handleTaskPress, navigation, userRole]);
 
+  // Handle navigation actions
+  const handleCreateTask = useCallback(() => {
+    navigation?.navigate('PostTask');
+  }, [navigation]);
+
+  const handleBrowseTasks = useCallback(() => {
+    navigation?.navigate('Home');
+  }, [navigation]);
+
+  // Handle filters
   const handleApplyFilters = useCallback((newFilters) => {
     setFilters(newFilters);
   }, []);
 
+  // Filter tasks
   const filteredTasks = React.useMemo(() => {
     let filtered = [...tasks];
     
-    // Apply filters here if needed
+    // Apply status filter
     if (filters.status !== 'all') {
       filtered = filtered.filter(task => task.status === filters.status);
     }
     
+    // Apply search filter
     if (filters.search.trim()) {
       const query = filters.search.toLowerCase();
       filtered = filtered.filter(task => 
         task.title.toLowerCase().includes(query) ||
-        task.subject.toLowerCase().includes(query)
+        task.subject.toLowerCase().includes(query) ||
+        (task.assignedExpertName && task.assignedExpertName.toLowerCase().includes(query)) ||
+        (task.requesterName && task.requesterName.toLowerCase().includes(query))
       );
+    }
+    
+    // Apply urgency filter
+    if (filters.urgency !== 'all') {
+      filtered = filtered.filter(task => task.urgency === filters.urgency);
+    }
+    
+    // Apply sorting
+    switch (filters.sortBy) {
+      case 'due_date_asc':
+        filtered.sort((a, b) => {
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        });
+        break;
+      case 'due_date_desc':
+        filtered.sort((a, b) => {
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(b.deadline) - new Date(a.deadline);
+        });
+        break;
+      case 'price_desc':
+        filtered.sort((a, b) => {
+          const priceA = parseFloat(a.price?.replace('$', '') || '0');
+          const priceB = parseFloat(b.price?.replace('$', '') || '0');
+          return priceB - priceA;
+        });
+        break;
+      case 'recent':
+        filtered.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.assignedAt);
+          const dateB = new Date(b.createdAt || b.assignedAt);
+          return dateB - dateA;
+        });
+        break;
     }
     
     return filtered;
   }, [tasks, filters]);
 
+  // Render task card
   const renderTaskCard = useCallback(({ item }) => (
-    <TaskCard
+    <EnhancedTaskCard
       task={item}
       onPress={handleTaskPress}
-      onActionPress={handleTaskAction}
+      onAction={handleTaskAction}
       isRequester={userRole === 'requester'}
+      showActions={true}
+      compact={false}
     />
   ), [handleTaskPress, handleTaskAction, userRole]);
 
+  // Handle back press
   const handleBackPress = () => {
-    if (navigation && navigation.goBack) {
+    if (navigation?.goBack) {
       navigation.goBack();
     }
   };
 
-  // Load tasks when component mounts or role changes
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
   // Show loading screen for initial load
-  if (loading && tasks.length === 0) {
+  if (loading && tasks.length === 0 && !error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2e7d32" />
-          <Text style={styles.loadingText}>Loading your tasks...</Text>
-        </View>
-      </SafeAreaView>
+      <LoadingScreen 
+        message={`Loading your ${userRole} tasks...`}
+        submessage="Getting your assignment data ready"
+      />
     );
   }
 
@@ -336,25 +438,43 @@ const MyTasksScreen = ({ navigation }) => {
       {/* Role Toggle */}
       <RoleToggle 
         activeRole={userRole} 
-        onRoleChange={handleRoleChange} 
+        onRoleChange={handleRoleChange}
+        requesterStats={requesterStats}
+        expertStats={expertStats}
       />
 
       {/* Statistics */}
-      <StatsCards stats={stats} />
+      <StatsCards stats={stats} role={userRole} />
 
-      {/* Task Count */}
+      {/* Task Count and Instructions */}
       <View style={styles.taskCountContainer}>
         <Text style={styles.taskCount}>
           {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} found
+          {tasks.length !== filteredTasks.length && ` (${tasks.length} total)`}
         </Text>
         <Text style={styles.instructionText}>
           💡 Pull down to refresh • Tap cards for actions
+          {userRole === 'requester' && ' • Green status = Expert assigned!'}
         </Text>
       </View>
 
-      {/* Task List */}
+      {/* Error Message */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>⚠️ {error}</Text>
+          <TouchableOpacity onPress={() => loadTasks()} style={styles.retryButton}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Task List or Empty State */}
       {filteredTasks.length === 0 ? (
-        <EmptyState role={userRole} />
+        <EmptyState 
+          role={userRole}
+          onCreateTask={handleCreateTask}
+          onBrowseTasks={handleBrowseTasks}
+        />
       ) : (
         <FlatList
           data={filteredTasks}
@@ -415,18 +535,6 @@ const styles = StyleSheet.create({
     color: '#2e7d32',
     fontWeight: '500',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 12,
-    textAlign: 'center',
-  },
   
   // Role Toggle Styles
   tabContainer: {
@@ -446,10 +554,13 @@ const styles = StyleSheet.create({
   },
   roleTab: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    gap: 6,
   },
   activeRoleTab: {
     backgroundColor: '#2e7d32',
@@ -466,6 +577,20 @@ const styles = StyleSheet.create({
   },
   activeRoleTabText: {
     color: '#fff',
+  },
+  roleTabBadge: {
+    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  roleTabBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#666',
   },
   
   // Stats Styles
@@ -520,12 +645,43 @@ const styles = StyleSheet.create({
     color: '#2e7d32',
     marginTop: 4,
     fontWeight: '500',
+    lineHeight: 16,
+  },
+  
+  // Error Banner
+  errorBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#c62828',
+    flex: 1,
+    fontWeight: '500',
+  },
+  retryButton: {
+    backgroundColor: '#f44336',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   
   // Task List
   taskList: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   
   // Empty State
@@ -540,17 +696,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#333',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 32,
+    maxWidth: 280,
+  },
+  emptyActions: {
+    gap: 12,
+  },
+  emptyButton: {
+    backgroundColor: '#2e7d32',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#2e7d32',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
