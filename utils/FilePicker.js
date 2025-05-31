@@ -1,21 +1,98 @@
-// utils/FilePicker.js - React Native compatible file picker
-import { Alert, Platform } from 'react-native';
-
-// For React Native - install: npm install react-native-document-picker
-// import DocumentPicker from 'react-native-document-picker';
-
-// For Web - install: npm install react-native-file-picker-web
-// import { launchImageLibrary } from 'react-native-image-picker';
+// utils/FilePicker.js - File picker utility for task deliveries
+import { Alert } from 'react-native';
 
 class FilePicker {
-  
+  // Supported file types
+  static SUPPORTED_TYPES = {
+    // Documents
+    'pdf': { category: 'Document', icon: '📄' },
+    'doc': { category: 'Document', icon: '📄' },
+    'docx': { category: 'Document', icon: '📄' },
+    'txt': { category: 'Document', icon: '📄' },
+    'rtf': { category: 'Document', icon: '📄' },
+    'odt': { category: 'Document', icon: '📄' },
+    
+    // Spreadsheets
+    'xls': { category: 'Spreadsheet', icon: '📊' },
+    'xlsx': { category: 'Spreadsheet', icon: '📊' },
+    'csv': { category: 'Spreadsheet', icon: '📊' },
+    'ods': { category: 'Spreadsheet', icon: '📊' },
+    
+    // Presentations
+    'ppt': { category: 'Presentation', icon: '📊' },
+    'pptx': { category: 'Presentation', icon: '📊' },
+    'odp': { category: 'Presentation', icon: '📊' },
+    
+    // Code files
+    'py': { category: 'Source Code', icon: '🐍' },
+    'js': { category: 'Source Code', icon: '💻' },
+    'jsx': { category: 'Source Code', icon: '⚛️' },
+    'ts': { category: 'Source Code', icon: '💻' },
+    'tsx': { category: 'Source Code', icon: '⚛️' },
+    'html': { category: 'Source Code', icon: '🌐' },
+    'css': { category: 'Source Code', icon: '🎨' },
+    'java': { category: 'Source Code', icon: '☕' },
+    'cpp': { category: 'Source Code', icon: '⚙️' },
+    'c': { category: 'Source Code', icon: '⚙️' },
+    'swift': { category: 'Source Code', icon: '🍎' },
+    'kt': { category: 'Source Code', icon: '🤖' },
+    'php': { category: 'Source Code', icon: '💻' },
+    'rb': { category: 'Source Code', icon: '💎' },
+    'go': { category: 'Source Code', icon: '💻' },
+    'rust': { category: 'Source Code', icon: '🦀' },
+    'sql': { category: 'Source Code', icon: '🗃️' },
+    'sh': { category: 'Source Code', icon: '💻' },
+    'bat': { category: 'Source Code', icon: '💻' },
+    'json': { category: 'Data File', icon: '🔧' },
+    'xml': { category: 'Data File', icon: '🔧' },
+    'yaml': { category: 'Data File', icon: '🔧' },
+    'yml': { category: 'Data File', icon: '🔧' },
+    
+    // Images
+    'jpg': { category: 'Image', icon: '🖼️' },
+    'jpeg': { category: 'Image', icon: '🖼️' },
+    'png': { category: 'Image', icon: '🖼️' },
+    'gif': { category: 'Image', icon: '🎞️' },
+    'svg': { category: 'Image', icon: '🖼️' },
+    'webp': { category: 'Image', icon: '🖼️' },
+    'bmp': { category: 'Image', icon: '🖼️' },
+    'tiff': { category: 'Image', icon: '🖼️' },
+    
+    // Archives
+    'zip': { category: 'Archive', icon: '📦' },
+    'rar': { category: 'Archive', icon: '📦' },
+    '7z': { category: 'Archive', icon: '📦' },
+    'tar': { category: 'Archive', icon: '📦' },
+    'gz': { category: 'Archive', icon: '📦' },
+    
+    // Media
+    'mp4': { category: 'Video', icon: '🎥' },
+    'avi': { category: 'Video', icon: '🎥' },
+    'mov': { category: 'Video', icon: '🎥' },
+    'wmv': { category: 'Video', icon: '🎥' },
+    'mp3': { category: 'Audio', icon: '🎵' },
+    'wav': { category: 'Audio', icon: '🎵' },
+    'flac': { category: 'Audio', icon: '🎵' },
+    
+    // Design files
+    'psd': { category: 'Design', icon: '🎨' },
+    'ai': { category: 'Design', icon: '🎨' },
+    'sketch': { category: 'Design', icon: '🎨' },
+    'fig': { category: 'Design', icon: '🎨' },
+    'xd': { category: 'Design', icon: '🎨' },
+    
+    // Documentation
+    'md': { category: 'Documentation', icon: '📋' },
+    'readme': { category: 'Documentation', icon: '📋' },
+  };
+
   // Web implementation using HTML5 File API
   static pickFilesWeb() {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.multiple = true;
-      input.accept = '.pdf,.doc,.docx,.txt,.jpg,.png,.gif,.zip,.py,.js,.html,.css,.csv,.xlsx,.ppt,.pptx';
+      input.accept = Object.keys(this.SUPPORTED_TYPES).map(ext => `.${ext}`).join(',');
       
       input.onchange = (event) => {
         const files = Array.from(event.target.files);
@@ -29,7 +106,7 @@ class FilePicker {
             category: this.categorizeFile(file.name.split('.').pop().toLowerCase()),
             file: file,
             rawSize: file.size,
-            uri: URL.createObjectURL(file) // For preview
+            uri: URL.createObjectURL(file)
           }));
           resolve(processedFiles);
         } else {
@@ -45,61 +122,24 @@ class FilePicker {
     });
   }
 
-  // React Native implementation
+  // React Native implementation (requires react-native-document-picker)
   static async pickFilesNative() {
     try {
-      // Uncomment when using react-native-document-picker
-      /*
-      const results = await DocumentPicker.pick({
-        type: [
-          DocumentPicker.types.pdf,
-          DocumentPicker.types.doc,
-          DocumentPicker.types.docx,
-          DocumentPicker.types.plainText,
-          DocumentPicker.types.images,
-          DocumentPicker.types.zip,
-          'application/javascript',
-          'text/html',
-          'text/css',
-          'text/csv',
-          'application/vnd.ms-excel',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-powerpoint',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-        ],
-        allowMultiSelection: true,
-        copyTo: 'documentDirectory'
-      });
-
-      return results.map((file, index) => ({
-        id: `file_${Date.now()}_${index}`,
-        name: file.name,
-        size: this.formatFileSize(file.size),
-        type: file.name.split('.').pop().toLowerCase(),
-        uploadTime: new Date().toISOString(),
-        category: this.categorizeFile(file.name.split('.').pop().toLowerCase()),
-        file: file,
-        rawSize: file.size,
-        uri: file.uri,
-        fileCopyUri: file.fileCopyUri
-      }));
-      */
+      // For React Native, you'll need to install and import:
+      // npm install react-native-document-picker
+      // import DocumentPicker from 'react-native-document-picker';
       
       // Mock implementation for demo
       return this.getMockFiles();
     } catch (error) {
-      if (DocumentPicker.isCancel(error)) {
-        return [];
-      } else {
-        throw error;
-      }
+      throw error;
     }
   }
 
   // Main method that chooses implementation based on platform
   static async pickFiles() {
     try {
-      if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.document) {
         return await this.pickFilesWeb();
       } else {
         return await this.pickFilesNative();
@@ -110,33 +150,12 @@ class FilePicker {
     }
   }
 
-  // Camera picker for images (React Native only)
+  // Camera picker for images
   static async pickImageFromCamera() {
     try {
-      // Uncomment when using react-native-image-picker
-      /*
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        quality: 0.8,
-        allowsEditing: true,
-        selectionLimit: 1
-      });
-
-      if (result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        return [{
-          id: `img_${Date.now()}`,
-          name: asset.fileName || `image_${Date.now()}.jpg`,
-          size: this.formatFileSize(asset.fileSize),
-          type: 'jpg',
-          uploadTime: new Date().toISOString(),
-          category: 'Image',
-          file: asset,
-          rawSize: asset.fileSize,
-          uri: asset.uri
-        }];
-      }
-      */
+      // For React Native, you'll need:
+      // npm install react-native-image-picker
+      // import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
       
       return [];
     } catch (error) {
@@ -147,7 +166,7 @@ class FilePicker {
 
   // Mock files for demo purposes
   static getMockFiles() {
-    return [
+    const mockFiles = [
       {
         id: `file_${Date.now()}_1`,
         name: 'solution_document.pdf',
@@ -169,59 +188,18 @@ class FilePicker {
         uri: 'mock://file2'
       }
     ];
+    
+    // Return random 1-2 files
+    const numFiles = Math.floor(Math.random() * 2) + 1;
+    return mockFiles.slice(0, numFiles);
   }
 
   // File categorization
   static categorizeFile(extension) {
-    const categories = {
-      'pdf': 'Document',
-      'doc': 'Document',
-      'docx': 'Document',
-      'txt': 'Document',
-      'md': 'Documentation',
-      'py': 'Source Code',
-      'js': 'Source Code',
-      'jsx': 'Source Code',
-      'ts': 'Source Code',
-      'tsx': 'Source Code',
-      'html': 'Source Code',
-      'css': 'Source Code',
-      'java': 'Source Code',
-      'cpp': 'Source Code',
-      'c': 'Source Code',
-      'swift': 'Source Code',
-      'kt': 'Source Code',
-      'jpg': 'Image',
-      'jpeg': 'Image',
-      'png': 'Image',
-      'gif': 'Image',
-      'svg': 'Image',
-      'webp': 'Image',
-      'xlsx': 'Spreadsheet',
-      'xls': 'Spreadsheet',
-      'csv': 'Data File',
-      'json': 'Data File',
-      'xml': 'Data File',
-      'zip': 'Archive',
-      'rar': 'Archive',
-      '7z': 'Archive',
-      'tar': 'Archive',
-      'gz': 'Archive',
-      'mp4': 'Video',
-      'avi': 'Video',
-      'mov': 'Video',
-      'wmv': 'Video',
-      'mp3': 'Audio',
-      'wav': 'Audio',
-      'flac': 'Audio',
-      'pptx': 'Presentation',
-      'ppt': 'Presentation',
-      'sketch': 'Design',
-      'fig': 'Design',
-      'psd': 'Design'
-    };
+    if (!extension) return 'Other File';
     
-    return categories[extension] || 'Other File';
+    const fileType = this.SUPPORTED_TYPES[extension.toLowerCase()];
+    return fileType ? fileType.category : 'Other File';
   }
 
   // Format file size
@@ -235,18 +213,10 @@ class FilePicker {
 
   // Validate file type
   static isValidFileType(filename) {
-    const allowedExtensions = [
-      'pdf', 'doc', 'docx', 'txt', 'md',
-      'py', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'java', 'cpp', 'c',
-      'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp',
-      'xlsx', 'xls', 'csv', 'json', 'xml',
-      'zip', 'rar', '7z', 'tar', 'gz',
-      'mp4', 'avi', 'mov', 'mp3', 'wav',
-      'pptx', 'ppt', 'sketch', 'fig', 'psd'
-    ];
+    if (!filename) return false;
     
-    const extension = filename.split('.').pop().toLowerCase();
-    return allowedExtensions.includes(extension);
+    const extension = filename.split('.').pop()?.toLowerCase();
+    return extension && this.SUPPORTED_TYPES.hasOwnProperty(extension);
   }
 
   // Validate file size (in bytes)
@@ -257,7 +227,7 @@ class FilePicker {
 
   // Check total upload size
   static validateTotalSize(files, maxTotalMB = 50) {
-    const totalSize = files.reduce((sum, file) => sum + file.rawSize, 0);
+    const totalSize = files.reduce((sum, file) => sum + (file.rawSize || 0), 0);
     const maxTotalBytes = maxTotalMB * 1024 * 1024;
     return {
       isValid: totalSize <= maxTotalBytes,
@@ -268,95 +238,171 @@ class FilePicker {
 
   // Get file icon
   static getFileIcon(type) {
-    const icons = {
-      'pdf': '📄',
-      'doc': '📝',
-      'docx': '📝',
-      'txt': '📃',
-      'md': '📋',
-      'py': '🐍',
-      'js': '💻',
-      'jsx': '⚛️',
-      'ts': '💻',
-      'tsx': '⚛️',
-      'html': '🌐',
-      'css': '🎨',
-      'java': '☕',
-      'cpp': '⚙️',
-      'c': '⚙️',
-      'swift': '🍎',
-      'kt': '🤖',
-      'jpg': '🖼️',
-      'jpeg': '🖼️',
-      'png': '🖼️',
-      'gif': '🎞️',
-      'svg': '🖼️',
-      'webp': '🖼️',
-      'xlsx': '📊',
-      'xls': '📊',
-      'csv': '📈',
-      'json': '🔧',
-      'xml': '🔧',
-      'zip': '📦',
-      'rar': '📦',
-      '7z': '📦',
-      'tar': '📦',
-      'gz': '📦',
-      'mp4': '🎥',
-      'avi': '🎥',
-      'mov': '🎥',
-      'wmv': '🎥',
-      'mp3': '🎵',
-      'wav': '🎵',
-      'flac': '🎵',
-      'pptx': '📊',
-      'ppt': '📊',
-      'sketch': '🎨',
-      'fig': '🎨',
-      'psd': '🎨'
+    if (!type) return '📎';
+    
+    const fileType = this.SUPPORTED_TYPES[type.toLowerCase()];
+    return fileType ? fileType.icon : '📎';
+  }
+
+  // Get common file types for a subject
+  static getCommonFileTypes(subject) {
+    const commonTypes = {
+      'Math': ['pdf', 'docx', 'xlsx', 'jpg', 'png'],
+      'Coding': ['py', 'js', 'html', 'css', 'java', 'cpp', 'json'],
+      'Writing': ['docx', 'pdf', 'txt', 'md'],
+      'Design': ['psd', 'ai', 'sketch', 'fig', 'png', 'jpg'],
+      'Science': ['pdf', 'docx', 'xlsx', 'csv', 'jpg'],
+      'Business': ['xlsx', 'pptx', 'pdf', 'docx', 'csv'],
+      'Language': ['docx', 'pdf', 'txt', 'mp3', 'wav'],
+      'Chemistry': ['pdf', 'xlsx', 'csv', 'jpg', 'png'],
+      'Physics': ['pdf', 'xlsx', 'py', 'jpg', 'png'],
+      'Psychology': ['pdf', 'docx', 'xlsx', 'pptx']
     };
-    return icons[type] || '📎';
+    
+    return commonTypes[subject] || ['pdf', 'docx', 'jpg', 'png'];
+  }
+
+  // Create quick files based on subject
+  static createQuickFiles(subject, type = 'documents') {
+    const baseTime = Date.now();
+    const commonTypes = this.getCommonFileTypes(subject);
+    
+    if (type === 'code' && subject === 'Coding') {
+      return [
+        {
+          id: `quick_${baseTime}_1`,
+          name: 'solution.py',
+          size: this.formatFileSize(15200),
+          type: 'py',
+          uploadTime: new Date().toISOString(),
+          category: this.categorizeFile('py'),
+          rawSize: 15200,
+          uri: 'mock://solution.py'
+        },
+        {
+          id: `quick_${baseTime}_2`,
+          name: 'README.md',
+          size: this.formatFileSize(2048),
+          type: 'md',
+          uploadTime: new Date().toISOString(),
+          category: this.categorizeFile('md'),
+          rawSize: 2048,
+          uri: 'mock://readme.md'
+        }
+      ];
+    }
+    
+    // Default document type
+    const primaryType = commonTypes[0] || 'pdf';
+    return [
+      {
+        id: `quick_${baseTime}_1`,
+        name: `${subject.toLowerCase()}_solution.${primaryType}`,
+        size: this.formatFileSize(2400000),
+        type: primaryType,
+        uploadTime: new Date().toISOString(),
+        category: this.categorizeFile(primaryType),
+        rawSize: 2400000,
+        uri: `mock://solution.${primaryType}`
+      }
+    ];
+  }
+
+  // Batch file validation
+  static validateFiles(files, options = {}) {
+    const {
+      maxFileSize = 10, // MB
+      maxTotalSize = 50, // MB
+      allowedTypes = null // null means all supported types
+    } = options;
+    
+    const results = {
+      valid: [],
+      invalid: [],
+      errors: []
+    };
+    
+    for (const file of files) {
+      const errors = [];
+      
+      // Check file type
+      if (allowedTypes) {
+        if (!allowedTypes.includes(file.type)) {
+          errors.push(`File type '${file.type}' not allowed`);
+        }
+      } else if (!this.isValidFileType(file.name)) {
+        errors.push(`File type '${file.type}' not supported`);
+      }
+      
+      // Check file size
+      if (!this.isValidFileSize(file.rawSize, maxFileSize)) {
+        errors.push(`File size exceeds ${maxFileSize}MB limit`);
+      }
+      
+      if (errors.length === 0) {
+        results.valid.push(file);
+      } else {
+        results.invalid.push({ file, errors });
+        results.errors.push(...errors.map(error => `${file.name}: ${error}`));
+      }
+    }
+    
+    // Check total size
+    const totalSizeResult = this.validateTotalSize(results.valid, maxTotalSize);
+    if (!totalSizeResult.isValid) {
+      results.errors.push(`Total file size (${totalSizeResult.totalSize}) exceeds ${totalSizeResult.maxSize} limit`);
+      // Move some files to invalid if total size exceeded
+      while (results.valid.length > 0 && !this.validateTotalSize(results.valid, maxTotalSize).isValid) {
+        const removed = results.valid.pop();
+        results.invalid.push({ 
+          file: removed, 
+          errors: ['Removed due to total size limit'] 
+        });
+      }
+    }
+    
+    return results;
+  }
+
+  // Get file preview URL (for images)
+  static getPreviewUrl(file) {
+    if (!file.uri || !this.isImageFile(file.type)) {
+      return null;
+    }
+    
+    return file.uri;
+  }
+
+  // Check if file is an image
+  static isImageFile(type) {
+    const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'tiff'];
+    return imageTypes.includes(type?.toLowerCase());
+  }
+
+  // Check if file is a document
+  static isDocumentFile(type) {
+    const docTypes = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'];
+    return docTypes.includes(type?.toLowerCase());
+  }
+
+  // Check if file is code
+  static isCodeFile(type) {
+    const codeTypes = ['py', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'java', 'cpp', 'c', 'swift', 'kt', 'php', 'rb', 'go', 'rust', 'sql', 'sh', 'bat'];
+    return codeTypes.includes(type?.toLowerCase());
+  }
+
+  // Generate file metadata
+  static generateFileMetadata(file) {
+    return {
+      ...file,
+      isImage: this.isImageFile(file.type),
+      isDocument: this.isDocumentFile(file.type),
+      isCode: this.isCodeFile(file.type),
+      sizeInMB: (file.rawSize / (1024 * 1024)).toFixed(2),
+      uploadedAt: new Date(file.uploadTime).toLocaleString(),
+      previewUrl: this.getPreviewUrl(file)
+    };
   }
 }
 
 export default FilePicker;
-
-// Usage example in your component:
-/*
-import FilePicker from '../utils/FilePicker';
-
-const handleFilePicker = async () => {
-  try {
-    const selectedFiles = await FilePicker.pickFiles();
-    
-    if (selectedFiles.length > 0) {
-      // Validate files
-      const validFiles = selectedFiles.filter(file => {
-        if (!FilePicker.isValidFileType(file.name)) {
-          Alert.alert('Invalid File', `${file.name} is not a supported file type`);
-          return false;
-        }
-        if (!FilePicker.isValidFileSize(file.rawSize, 10)) {
-          Alert.alert('File Too Large', `${file.name} exceeds 10MB limit`);
-          return false;
-        }
-        return true;
-      });
-
-      // Check total size
-      const sizeValidation = FilePicker.validateTotalSize([...deliveryFiles, ...validFiles]);
-      if (!sizeValidation.isValid) {
-        Alert.alert(
-          'Total Size Exceeded', 
-          `Total size (${sizeValidation.totalSize}) exceeds ${sizeValidation.maxSize} limit`
-        );
-        return;
-      }
-
-      setDeliveryFiles(prev => [...prev, ...validFiles]);
-    }
-  } catch (error) {
-    Alert.alert('File Selection Error', error.message);
-  }
-};
-*/

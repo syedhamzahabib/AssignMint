@@ -1,4 +1,4 @@
-// screens/UploadDeliveryScreen.js - Complete with FilePicker integration
+// screens/UploadDeliveryScreen.js - Enhanced with Manual Match integration
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,7 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import { TasksAPI } from '../api/tasks';
-import FilePicker from '../utils/FilePicker'; // Import the FilePicker utility
+import firestoreService from '../services/FirestoreService';
+import FilePicker from '../utils/FilePicker';
 
 const UploadDeliveryScreen = ({ route, navigation }) => {
   const { task } = route.params || {};
@@ -24,6 +25,11 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fadeAnim] = useState(new Animated.Value(0));
+  const [taskDetails, setTaskDetails] = useState(task || null);
+  const [loading, setLoading] = useState(!task);
+
+  // Mock user ID - replace with actual auth
+  const userId = 'expert123';
 
   useEffect(() => {
     // Fade in animation
@@ -32,10 +38,59 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       duration: 500,
       useNativeDriver: true,
     }).start();
+
+    // Load full task details if not provided
+    if (!task && route.params?.taskId) {
+      loadTaskDetails(route.params.taskId);
+    }
   }, []);
 
+  // Load task details for Manual Match tasks
+  const loadTaskDetails = async (taskId) => {
+    try {
+      setLoading(true);
+      const response = await firestoreService.getTaskById(taskId);
+      
+      if (response.success) {
+        setTaskDetails(response.data);
+        
+        // Verify expert is assigned to this task
+        if (response.data.assignedExpertId !== userId) {
+          Alert.alert(
+            'Access Denied',
+            'You are not assigned to this task.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+          return;
+        }
+      } else {
+        throw new Error(response.message);
+      }
+    } catch (error) {
+      console.error('Failed to load task details:', error);
+      Alert.alert(
+        'Error',
+        'Failed to load task details. Please try again.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Safety check for task
-  if (!task) {
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2e7d32" />
+          <Text style={styles.loadingText}>Loading task details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!taskDetails) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -167,11 +222,11 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: task.subject === 'Math' ? '📊 Math Solutions' : '📄 Documents', 
+          text: taskDetails.subject === 'Math' ? '📊 Math Solutions' : '📄 Documents', 
           onPress: () => addQuickFiles('documents')
         },
         { 
-          text: task.subject === 'Coding' ? '💻 Code Files' : '🖼️ Images', 
+          text: taskDetails.subject === 'Coding' ? '💻 Code Files' : '🖼️ Images', 
           onPress: () => addQuickFiles('code')
         },
         { 
@@ -188,7 +243,7 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       documents: [
         {
           id: `quick_${Date.now()}_1`,
-          name: `${task.subject.toLowerCase()}_solution.pdf`,
+          name: `${taskDetails.subject.toLowerCase()}_solution.pdf`,
           size: FilePicker.formatFileSize(2400000),
           type: 'pdf',
           uploadTime: new Date().toISOString(),
@@ -200,7 +255,7 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       code: [
         {
           id: `quick_${Date.now()}_2`,
-          name: task.subject === 'Coding' ? 'solution.py' : 'analysis.py',
+          name: taskDetails.subject === 'Coding' ? 'solution.py' : 'analysis.py',
           size: FilePicker.formatFileSize(15200),
           type: 'py',
           uploadTime: new Date().toISOString(),
@@ -256,8 +311,8 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
     });
   };
 
-  const daysLeftInfo = calculateDaysLeft(task.dueDate);
-  const subjectColor = getSubjectColor(task.subject);
+  const daysLeftInfo = calculateDaysLeft(taskDetails.deadline);
+  const subjectColor = getSubjectColor(taskDetails.subject);
 
   // Upload progress simulation
   const simulateUploadProgress = () => {
@@ -292,26 +347,26 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
     );
   };
 
-  // Predefined message templates
+  // Enhanced message templates for Manual Match
   const messageTemplates = [
     {
-      id: 'standard',
-      title: '✅ Standard Completion',
-      message: `Hi ${task.requesterName || 'there'}! I've completed your ${task.subject} task as requested. All requirements have been thoroughly addressed and the work is ready for your review. Please find the deliverable files attached. Let me know if you need any clarifications or have questions about the solution!`
+      id: 'manual_standard',
+      title: '✅ Manual Match Completion',
+      message: `Hi ${taskDetails.requesterName || 'there'}! I was excited to work on your "${taskDetails.title}" task that you posted on the expert marketplace. I've completed all requirements as specified and believe the solution meets your expectations. Please find the deliverable files attached. I chose to work on this task because it aligns perfectly with my expertise in ${taskDetails.subject}. Please review and let me know if you need any clarifications!`
     },
     {
-      id: 'early',
-      title: '⚡ Early Delivery',
-      message: `Great news! I've completed your task ahead of schedule. Everything has been thoroughly tested and documented. The solution exceeds the basic requirements and includes additional insights that might be helpful. Please review the attached files and let me know your feedback!`
+      id: 'manual_early',
+      title: '⚡ Early Manual Match Delivery',
+      message: `Great news! I've completed your "${taskDetails.title}" task ahead of schedule. As an expert who specifically chose to work on your assignment from the marketplace, I wanted to deliver exceptional results. The solution exceeds the basic requirements and includes additional insights that might be helpful. I'm proud to have been selected for this manual match task!`
     },
     {
-      id: 'revision',
-      title: '🔄 Revision Submitted',
-      message: `Thank you for your feedback! I've carefully addressed all the points you mentioned and made the necessary revisions. The updated files are attached and ready for your review. I believe this version better meets your expectations. Please let me know if any further adjustments are needed.`
+      id: 'manual_revision',
+      title: '🔄 Manual Match Revision',
+      message: `Thank you for your detailed feedback on the "${taskDetails.title}" task. As the expert you selected for this manual match assignment, I've carefully addressed all your points and made the necessary revisions. I appreciate your trust in choosing me from the available experts, and I believe this updated version better meets your expectations. Please let me know if any further adjustments are needed.`
     }
   ];
 
-  // Handle delivery submission
+  // Handle delivery submission with Manual Match integration
   const handleSubmitDelivery = async () => {
     // Enhanced validation
     if (deliveryFiles.length === 0) {
@@ -369,6 +424,10 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
         totalFiles: deliveryFiles.length,
         totalSize: sizeValidation.totalSize,
         fileCategories: [...new Set(deliveryFiles.map(f => f.category))],
+        // Manual Match specific data
+        isManualMatch: taskDetails.matchingType === 'manual',
+        expertId: userId,
+        expertName: 'Current Expert', // Replace with actual expert name
       };
 
       console.log('📤 Submitting delivery:', deliveryData);
@@ -385,18 +444,18 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      const response = await TasksAPI.submitTaskAction(
-        task.id, 
-        'upload', 
-        'expert', 
+      // Submit through Firestore service for Manual Match tasks
+      const response = await firestoreService.submitTaskDelivery(
+        taskDetails.id,
+        userId,
         deliveryData
       );
 
       if (response.success) {
-        // Enhanced success message
+        // Enhanced success message for Manual Match
         Alert.alert(
           '🎉 Delivery Uploaded Successfully!',
-          `Your work for "${task.title}" has been delivered!\n\n✅ ${deliveryFiles.length} file(s) uploaded\n📦 Total size: ${sizeValidation.totalSize}\n📝 Delivery message sent\n⏰ Delivered ${daysLeftInfo.isOverdue ? 'late' : daysLeftInfo.isUrgent ? 'on time' : 'early'}\n\n${task.requesterName || 'The requester'} will be notified and can now review your work.`,
+          `Your work for "${taskDetails.title}" has been delivered!\n\n✅ ${deliveryFiles.length} file(s) uploaded\n📦 Total size: ${sizeValidation.totalSize}\n📝 Delivery message sent\n⏰ Delivered ${daysLeftInfo.isOverdue ? 'late' : daysLeftInfo.isUrgent ? 'on time' : 'early'}\n${taskDetails.matchingType === 'manual' ? '\n🎯 Manual Match task completed!' : ''}\n\n${taskDetails.requesterName || 'The requester'} will be notified and can now review your work.`,
           [
             {
               text: 'View My Tasks',
@@ -505,24 +564,31 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Task Information Card */}
+        {/* Enhanced Task Information Card for Manual Match */}
         <Animated.View style={[styles.taskInfoCard, { opacity: fadeAnim }]}>
           <View style={styles.taskHeader}>
             <View style={styles.taskTitleContainer}>
               <Text style={styles.taskTitle} numberOfLines={2}>
-                {task.title}
+                {taskDetails.title}
               </Text>
-              <View style={[styles.subjectBadge, { backgroundColor: subjectColor }]}>
-                <Text style={styles.subjectText}>{task.subject}</Text>
+              <View style={styles.badgeContainer}>
+                <View style={[styles.subjectBadge, { backgroundColor: subjectColor }]}>
+                  <Text style={styles.subjectText}>{taskDetails.subject}</Text>
+                </View>
+                {taskDetails.matchingType === 'manual' && (
+                  <View style={styles.manualMatchBadge}>
+                    <Text style={styles.manualMatchText}>🎯 MANUAL MATCH</Text>
+                  </View>
+                )}
               </View>
             </View>
-            <Text style={styles.taskPrice}>{task.price}</Text>
+            <Text style={styles.taskPrice}>{taskDetails.price}</Text>
           </View>
 
           <View style={styles.taskDetails}>
             <View style={styles.taskDetailRow}>
               <Text style={styles.taskDetailLabel}>👤 Requester:</Text>
-              <Text style={styles.taskDetailValue}>{task.requesterName || 'Not specified'}</Text>
+              <Text style={styles.taskDetailValue}>{taskDetails.requesterName || 'Not specified'}</Text>
             </View>
             <View style={styles.taskDetailRow}>
               <Text style={styles.taskDetailLabel}>📅 Due Date:</Text>
@@ -531,10 +597,16 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
                 daysLeftInfo.isOverdue && styles.overdueText,
                 daysLeftInfo.isUrgent && styles.urgentText
               ]}>
-                {formatDate(task.dueDate)} • {daysLeftInfo.text}
+                {formatDate(taskDetails.deadline)} • {daysLeftInfo.text}
               </Text>
             </View>
-            {task.status === 'revision_requested' && (
+            <View style={styles.taskDetailRow}>
+              <Text style={styles.taskDetailLabel}>🎯 Assignment Type:</Text>
+              <Text style={styles.taskDetailValue}>
+                {taskDetails.matchingType === 'manual' ? 'Manual Match (You were chosen!)' : 'Auto-assigned'}
+              </Text>
+            </View>
+            {taskDetails.status === 'revision_requested' && (
               <View style={styles.revisionNotice}>
                 <Text style={styles.revisionIcon}>🔄</Text>
                 <Text style={styles.revisionText}>
@@ -670,11 +742,12 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
           )}
         </Animated.View>
 
-        {/* Message Section */}
+        {/* Enhanced Message Section for Manual Match */}
         <Animated.View style={[styles.messageSection, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>💬 Delivery Message</Text>
           <Text style={styles.sectionSubtitle}>
             Add a professional message about your completed work
+            {taskDetails.matchingType === 'manual' && ' (Manual Match delivery)'}
           </Text>
           
           <View style={styles.messageInputContainer}>
@@ -699,7 +772,7 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Message Templates */}
+          {/* Enhanced Message Templates for Manual Match */}
           <View style={styles.templatesContainer}>
             <Text style={styles.templatesTitle}>💡 Quick Templates:</Text>
             <View style={styles.templatesGrid}>
@@ -728,6 +801,7 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
         <View style={styles.submitSummary}>
           <Text style={styles.submitSummaryText}>
             📁 {deliveryFiles.length} file(s) • 💬 {deliveryMessage.length > 10 ? 'Message ready' : 'Add message'} • {daysLeftInfo.isOverdue ? '⚠️ Late' : daysLeftInfo.isUrgent ? '⏰ Due today' : '✅ On time'}
+            {taskDetails.matchingType === 'manual' && ' • 🎯 Manual Match'}
           </Text>
           {deliveryFiles.length > 0 && (
             <Text style={styles.submitSummarySize}>
@@ -754,7 +828,8 @@ const UploadDeliveryScreen = ({ route, navigation }) => {
             <View style={styles.submitButtonContent}>
               <Text style={styles.submitButtonIcon}>📤</Text>
               <Text style={styles.submitButtonText}>
-                {task.status === 'revision_requested' ? 'Submit Revision' : 'Upload & Deliver'}
+                {taskDetails.status === 'revision_requested' ? 'Submit Revision' : 
+                 taskDetails.matchingType === 'manual' ? 'Deliver Manual Match Task' : 'Upload & Deliver'}
               </Text>
             </View>
           )}
@@ -768,6 +843,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f4f5f9',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 16,
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -838,7 +925,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Task Info Card
+  // Enhanced Task Info Card with Manual Match support
   taskInfoCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -870,6 +957,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 24,
   },
+  badgeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
   subjectBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
@@ -879,6 +971,21 @@ const styles = StyleSheet.create({
   subjectText: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  // NEW - Manual Match badge
+  manualMatchBadge: {
+    backgroundColor: '#2196f3',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  manualMatchText: {
+    fontSize: 10,
+    fontWeight: '700',
     color: '#fff',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -905,6 +1012,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111',
     fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 8,
   },
   overdueText: {
     color: '#f44336',
