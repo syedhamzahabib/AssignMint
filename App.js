@@ -1,4 +1,4 @@
-// App.js - Fixed version with proper state management
+// App.js - Fixed version with proper UploadDeliveryScreen registration
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
 
@@ -18,6 +18,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import WalletScreen from './screens/WalletScreen';
 import TaskDetailsScreen from './screens/TaskDetailsScreen';
 import UploadDeliveryScreen from './screens/UploadDeliveryScreen';
+import TaskActionScreen from './screens/TaskActionScreen'; // Keep existing import
 
 // Import constants
 import { COLORS, SCREEN_NAMES } from './constants';
@@ -115,7 +116,7 @@ const App = () => {
       );
     }
 
-    // Handle navigation stack screens
+    // Handle navigation stack screens - FIXED: Added UploadDelivery case
     switch (currentScreen.name) {
       case 'TaskDetails':
         return (
@@ -128,6 +129,14 @@ const App = () => {
       case 'UploadDelivery':
         return (
           <UploadDeliveryScreen 
+            navigation={navigation} 
+            route={{ params: currentScreen.params }} 
+          />
+        );
+
+      case 'TaskAction':
+        return (
+          <TaskActionScreen 
             navigation={navigation} 
             route={{ params: currentScreen.params }} 
           />
@@ -160,7 +169,7 @@ const App = () => {
             return <HomeScreen navigation={navigation} />;
         }
     }
-  }, [showWallet, walletParams, currentScreen, activeTab, navigation]);
+  }), [showWallet, walletParams, currentScreen, activeTab, navigation]);
 
   // Memoized header renderer
   const renderHeader = useCallback(() => {
@@ -183,8 +192,8 @@ const App = () => {
 
   // Memoized tab bar visibility check
   const shouldShowTabBar = useCallback(() => {
-    // Hide tab bar for certain screens
-    const hideTabBarScreens = ['TaskDetails', 'UploadDelivery'];
+    // Hide tab bar for certain screens - UPDATED: Added UploadDelivery to list
+    const hideTabBarScreens = ['TaskDetails', 'UploadDelivery', 'TaskAction'];
     return !showWallet && !hideTabBarScreens.includes(currentScreen.name);
   }, [showWallet, currentScreen.name]);
 

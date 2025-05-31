@@ -1,4 +1,4 @@
-// screens/MyTasksScreen.js - Enhanced with Manual Match support
+// screens/MyTasksScreen.js - Updated with TaskActionModal integration
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -20,6 +20,7 @@ import { useAppState } from '../services/AppStateManager';
 import EnhancedTaskCard from '../components/task/EnhancedTaskCard';
 import FilterModal from '../components/FilterModal';
 import LoadingScreen from '../components/common/LoadingScreen';
+import TaskActionModal from '../components/TaskActionModal'; // ADDED: TaskActionModal
 
 const RoleToggle = ({ activeRole, onRoleChange, requesterStats, expertStats }) => (
   <View style={styles.tabContainer}>
@@ -119,6 +120,11 @@ const MyTasksScreen = ({ navigation }) => {
     urgency: 'all',
     search: ''
   });
+
+  // ADDED: TaskActionModal state
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedTaskForAction, setSelectedTaskForAction] = useState(null);
+  const [actionType, setActionType] = useState(null);
 
   // Real-time subscriptions
   const [requesterUnsubscribe, setRequesterUnsubscribe] = useState(null);
@@ -264,7 +270,7 @@ const MyTasksScreen = ({ navigation }) => {
     });
   }, [navigation, userRole]);
 
-  // Handle task actions
+  // UPDATED: Handle task actions with TaskActionModal integration
   const handleTaskAction = useCallback((task) => {
     const actions = [
       { text: 'Cancel', style: 'cancel' },
@@ -288,15 +294,23 @@ const MyTasksScreen = ({ navigation }) => {
         });
       }
     } else {
-      // Requester actions
+      // Requester actions - Use TaskActionModal
       if (task.status === 'pending_review') {
         actions.splice(1, 0, {
           text: '✅ Review & Approve',
-          onPress: () => navigation?.navigate('TaskAction', { taskId: task.id, action: 'review', task })
+          onPress: () => {
+            setSelectedTaskForAction(task);
+            setActionType('review');
+            setShowActionModal(true);
+          }
         });
         actions.splice(2, 0, {
           text: '🚩 Dispute',
-          onPress: () => navigation?.navigate('TaskAction', { taskId: task.id, action: 'dispute', task })
+          onPress: () => {
+            setSelectedTaskForAction(task);
+            setActionType('dispute');
+            setShowActionModal(true);
+          }
         });
       } else if (task.status === 'awaiting_expert') {
         actions.splice(1, 0, {
@@ -318,6 +332,19 @@ const MyTasksScreen = ({ navigation }) => {
       actions
     );
   }, [handleTaskPress, navigation, userRole]);
+
+  // ADDED: Action completion handler
+  const handleActionComplete = useCallback((action, actionData) => {
+    console.log(`✅ Action ${action} completed:`, actionData);
+    
+    // Refresh the task list to show updated status
+    loadTasks();
+    
+    // Close modal
+    setShowActionModal(false);
+    setSelectedTaskForAction(null);
+    setActionType(null);
+  }, [loadTasks]);
 
   // Handle navigation actions
   const handleCreateTask = useCallback(() => {
@@ -500,6 +527,21 @@ const MyTasksScreen = ({ navigation }) => {
         onApplyFilters={handleApplyFilters}
         currentFilters={filters}
         isRequester={userRole === 'requester'}
+      />
+
+      {/* ADDED: Task Action Modal */}
+      <TaskActionModal
+        visible={showActionModal}
+        onClose={() => {
+          setShowActionModal(false);
+          setSelectedTaskForAction(null);
+          setActionType(null);
+        }}
+        task={selectedTaskForAction}
+        actionType={actionType}
+        isRequester={userRole === 'requester'}
+        onActionComplete={handleActionComplete}
+        navigation={navigation}
       />
     </SafeAreaView>
   );
