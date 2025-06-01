@@ -348,6 +348,82 @@ export const validateTaskData = (task) => {
   };
 };
 
+// NEW: Get tag color for task tags (used in TaskContentSection)
+export const getTagColor = (tag) => {
+  if (!tag) return '#9e9e9e';
+  
+  // Generate a consistent color based on tag name
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  const colors = [
+    '#3f51b5', '#00796b', '#d84315', '#6a1b9a', '#00838f',
+    '#f57f17', '#1976d2', '#388e3c', '#7b1fa2', '#c62828'
+  ];
+  
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// NEW: Format file size for display (used in UploadDeliveryScreen and FilePicker)
+export const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// NEW: Get relative time string (used in ManualMatchTaskCard)
+export const getRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Unknown time';
+  
+  const now = new Date();
+  const time = new Date(timestamp);
+  const diffMs = now - time;
+  
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffSeconds < 60) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  
+  return time.toLocaleDateString();
+};
+
+// NEW: Check if task is overdue (used in TaskStatusSection)
+export const isTaskOverdue = (task) => {
+  if (!task.dueDate) return false;
+  
+  const now = new Date();
+  const due = new Date(task.dueDate);
+  
+  return due < now && !['completed', 'payment_received', 'cancelled'].includes(task.status);
+};
+
+// NEW: Format currency (used in TaskInfoSection)
+export const formatCurrency = (amount, currency = 'USD') => {
+  if (typeof amount === 'string') {
+    // If already formatted (e.g., "$25"), return as is
+    if (amount.startsWith('$')) return amount;
+    amount = parseFloat(amount);
+  }
+  
+  if (isNaN(amount)) return '$0';
+  
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+  }).format(amount);
+};
+
+// Export all functions as default for backward compatibility
 export default {
   getSubjectColor,
   getStatusInfo,
@@ -363,5 +439,11 @@ export default {
   sortTasksByPrice,
   filterTasks,
   getTaskStatistics,
-  validateTaskData
+  validateTaskData,
+  // NEW FUNCTIONS ADDED:
+  getTagColor,
+  formatFileSize,
+  getRelativeTime,
+  isTaskOverdue,
+  formatCurrency
 };

@@ -10,7 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { TasksAPI } from '../api/tasks';
+// FIXED: Import FirestoreService instead of TasksAPI
+import firestoreService from '../services/FirestoreService';
 
 const TaskActionScreen = ({ route, navigation }) => {
   const { taskId, role, action, task } = route.params;
@@ -71,7 +72,8 @@ const TaskActionScreen = ({ route, navigation }) => {
         return;
       }
 
-      const response = await TasksAPI.submitTaskAction(taskId, action, role, actionData);
+      // FIXED: Use firestoreService.submitTaskAction instead of TasksAPI
+      const response = await firestoreService.submitTaskAction(taskId, action, role, actionData);
       
       if (response.success) {
         Alert.alert('Success', response.message, [

@@ -11,7 +11,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { TasksAPI } from '../api/tasks';
+// FIXED: Import FirestoreService instead of TasksAPI
+import firestoreService from '../services/FirestoreService';
 
 const TaskActionModal = ({ 
   visible, 
@@ -75,7 +76,8 @@ const TaskActionModal = ({
           actionData = formData;
       }
 
-      const response = await TasksAPI.submitTaskAction(
+      // FIXED: Use firestoreService.submitTaskAction instead of TasksAPI
+      const response = await firestoreService.submitTaskAction(
         task.id, 
         actionType, 
         isRequester ? 'requester' : 'expert', 
