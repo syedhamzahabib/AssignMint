@@ -1,4 +1,4 @@
-// constants/index.js - Fixed version
+// constants/index.js - Fixed version with proper exports
 // App-wide constants and configuration
 
 export const APP_CONFIG = {
@@ -128,7 +128,6 @@ export const SCREEN_NAMES = {
   TASK_ACTION: 'TaskAction',
 };
 
-// Add the rest of your constants here...
 export const URGENCY_LEVELS = {
   HIGH: 'high',
   MEDIUM: 'medium',
@@ -159,4 +158,17 @@ export const VALIDATION_RULES = {
     MIN: 5,
     MAX: 1000,
   },
+};
+
+// Default export for backward compatibility
+export default {
+  APP_CONFIG,
+  COLORS,
+  FONTS,
+  SPACING,
+  TASK_STATUSES,
+  SCREEN_NAMES,
+  URGENCY_LEVELS,
+  SUBJECTS,
+  VALIDATION_RULES,
 };
