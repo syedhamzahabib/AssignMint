@@ -1,4 +1,5 @@
-// screens/MyTasksScreen.js - Updated with ErrorBoundary and TaskActionModal integration
+// screens/MyTasksScreen.js - Updated with ConnectionStatusIndicator integration
+
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
@@ -9,7 +10,6 @@ import {
   SafeAreaView,
   Alert,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 
 // Import services
@@ -20,8 +20,11 @@ import { useAppState } from '../services/AppStateManager';
 import EnhancedTaskCard from '../components/task/EnhancedTaskCard';
 import FilterModal from '../components/FilterModal';
 import LoadingScreen from '../components/common/LoadingScreen';
-import TaskActionModal from '../components/TaskActionModal'; // ADDED: TaskActionModal
-import ErrorBoundary from '../components/common/ErrorBoundary'; // ADDED: ErrorBoundary
+import TaskActionModal from '../components/TaskActionModal'; // For task-specific actions
+import ErrorBoundary from '../components/common/ErrorBoundary';
+
+// ADDED: Connection status imports
+import ConnectionStatusIndicator, { useConnectionStatus } from '../components/common/ConnectionStatusIndicator';
 
 const RoleToggle = ({ activeRole, onRoleChange, requesterStats, expertStats }) => (
   <View style={styles.tabContainer}>
@@ -50,7 +53,7 @@ const RoleToggle = ({ activeRole, onRoleChange, requesterStats, expertStats }) =
   </View>
 );
 
-const StatsCards = ({ stats, role }) => (
+const StatsCards = ({ stats }) => (
   <View style={styles.statsContainer}>
     <View style={styles.statCard}>
       <Text style={styles.statNumber}>{stats.active || 0}</Text>
@@ -80,12 +83,11 @@ const EmptyState = ({ role, onCreateTask, onBrowseTasks }) => (
       {role === 'requester' ? 'No tasks posted yet' : 'No tasks accepted yet'}
     </Text>
     <Text style={styles.emptyText}>
-      {role === 'requester' 
+      {role === 'requester'
         ? "Start by posting your first assignment"
         : "Browse available tasks and accept one to get started"
       }
     </Text>
-    
     <View style={styles.emptyActions}>
       {role === 'requester' ? (
         <TouchableOpacity style={styles.emptyButton} onPress={onCreateTask}>
@@ -103,12 +105,7 @@ const EmptyState = ({ role, onCreateTask, onBrowseTasks }) => (
 const MyTasksScreen = ({ navigation }) => {
   const [userRole, setUserRole] = useState('requester');
   const [tasks, setTasks] = useState([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    completed: 0,
-    overdue: 0
-  });
+  const [stats, setStats] = useState({ total: 0, active: 0, completed: 0, overdue: 0 });
   const [requesterStats, setRequesterStats] = useState({ total: 0 });
   const [expertStats, setExpertStats] = useState({ total: 0 });
   const [loading, setLoading] = useState(false);
@@ -134,43 +131,22 @@ const MyTasksScreen = ({ navigation }) => {
   // Mock user ID - replace with actual auth
   const userId = 'user123';
 
-  // Load tasks for specific role
-  const loadTasks = useCallback(async (role = userRole) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await firestoreService.getTasksByUser(userId, role);
-      
-      if (response.success) {
-        setTasks(response.data);
-        
-        // Calculate stats
-        const newStats = calculateStats(response.data);
-        setStats(newStats);
-        
-        // Update role-specific stats
-        if (role === 'requester') {
-          setRequesterStats({ total: response.data.length, ...newStats });
-        } else {
-          setExpertStats({ total: response.data.length, ...newStats });
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to load ${role} tasks:`, error);
-      setError(error.message || `Failed to load ${role} tasks`);
-    } finally {
-      setLoading(false);
-    }
-  }, [userRole, userId]);
+  // ADDED: Connection status hook
+  const {
+    isConnected,
+    isRealTime,
+    lastUpdate,
+    updateConnectionStatus,
+    markDataUpdate,
+  } = useConnectionStatus();
 
   // Calculate statistics from tasks
   const calculateStats = useCallback((taskList) => {
     const total = taskList.length;
-    const active = taskList.filter(t => 
+    const active = taskList.filter(t =>
       ['in_progress', 'working', 'pending_review', 'awaiting_expert'].includes(t.status)
     ).length;
-    const completed = taskList.filter(t => 
+    const completed = taskList.filter(t =>
       ['completed', 'payment_received'].includes(t.status)
     ).length;
     const overdue = taskList.filter(t => {
@@ -179,53 +155,92 @@ const MyTasksScreen = ({ navigation }) => {
       const now = new Date();
       return due < now && !['completed', 'payment_received', 'cancelled'].includes(t.status);
     }).length;
-    
+
     return { total, active, completed, overdue };
   }, []);
 
-  // Set up real-time subscriptions for both roles
+  // Load tasks for specific role
+  const loadTasks = useCallback(async (role = userRole) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await firestoreService.getTasksByUser(userId, role);
+
+      if (response.success) {
+        setTasks(response.data);
+        const newStats = calculateStats(response.data);
+        setStats(newStats);
+
+        if (role === 'requester') {
+          setRequesterStats({ total: response.data.length, ...newStats });
+        } else {
+          setExpertStats({ total: response.data.length, ...newStats });
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to load ${role} tasks:`, err);
+      setError(err.message || `Failed to load ${role} tasks`);
+    } finally {
+      setLoading(false);
+    }
+  }, [userRole, userId, calculateStats]);
+
+  // ADDED: Set up real-time subscriptions for both roles with connection status
   useEffect(() => {
     console.log('🔄 Setting up real-time subscriptions for My Tasks...');
-    
+
+    // Initial connection attempt
+    updateConnectionStatus(true, false);
+
     // Requester tasks subscription
     const reqSub = firestoreService.subscribeToUserTasks(userId, 'requester', (response) => {
       if (response.success) {
         const newStats = calculateStats(response.data);
         setRequesterStats({ total: response.data.length, ...newStats });
-        
-        // Update current view if viewing requester tasks
+
         if (userRole === 'requester') {
           setTasks(response.data);
           setStats(newStats);
           setError(null);
+          updateConnectionStatus(true, true); // Mark as real-time connected
+          markDataUpdate(); // Update lastUpdate timestamp
         }
       } else {
         console.error('Requester tasks subscription error:', response.message);
+        if (userRole === 'requester') {
+          updateConnectionStatus(false, false);
+        }
       }
     });
-    
+
     // Expert tasks subscription
     const expSub = firestoreService.subscribeToUserTasks(userId, 'expert', (response) => {
       if (response.success) {
         const newStats = calculateStats(response.data);
         setExpertStats({ total: response.data.length, ...newStats });
-        
-        // Update current view if viewing expert tasks
+
         if (userRole === 'expert') {
           setTasks(response.data);
           setStats(newStats);
           setError(null);
+          updateConnectionStatus(true, true); // Mark as real-time connected
+          markDataUpdate();
         }
       } else {
         console.error('Expert tasks subscription error:', response.message);
+        if (userRole === 'expert') {
+          updateConnectionStatus(false, false);
+        }
       }
     });
-    
+
     setRequesterUnsubscribe(() => reqSub);
     setExpertUnsubscribe(() => expSub);
-    
-    // Cleanup subscriptions
+
+    // Cleanup subscriptions on unmount or dependency change
     return () => {
+      updateConnectionStatus(false, false);
       if (reqSub) {
         console.log('🔄 Cleaning up requester tasks subscription');
         reqSub();
@@ -235,21 +250,17 @@ const MyTasksScreen = ({ navigation }) => {
         expSub();
       }
     };
-  }, [userId, userRole, calculateStats]);
+  }, [userId, userRole, calculateStats, updateConnectionStatus, markDataUpdate]);
 
   // Handle role change
   const handleRoleChange = useCallback((newRole) => {
     if (newRole !== userRole) {
       setUserRole(newRole);
       setError(null);
-      
-      // Update current view with cached data
-      if (newRole === 'requester' && requesterStats.total > 0) {
-        // Will be updated by subscription
-      } else if (newRole === 'expert' && expertStats.total > 0) {
-        // Will be updated by subscription
-      } else {
-        // Load fresh data if no cache
+
+      // If cached data exists, subscription callbacks will update. Otherwise, manually load.
+      if ((newRole === 'requester' && requesterStats.total === 0) ||
+          (newRole === 'expert' && expertStats.total === 0)) {
         loadTasks(newRole);
       }
     }
@@ -271,17 +282,16 @@ const MyTasksScreen = ({ navigation }) => {
     });
   }, [navigation, userRole]);
 
-  // UPDATED: Handle task actions with TaskActionModal integration
+  // Handle task actions
   const handleTaskAction = useCallback((task) => {
     const actions = [
       { text: 'Cancel', style: 'cancel' },
-      { 
-        text: '👀 View Details', 
-        onPress: () => handleTaskPress(task) 
+      {
+        text: '👀 View Details',
+        onPress: () => handleTaskPress(task)
       }
     ];
 
-    // Add role-specific actions
     if (userRole === 'expert') {
       if (task.status === 'working') {
         actions.splice(1, 0, {
@@ -295,7 +305,7 @@ const MyTasksScreen = ({ navigation }) => {
         });
       }
     } else {
-      // Requester actions - Use TaskActionModal
+      // Requester-specific actions
       if (task.status === 'pending_review') {
         actions.splice(1, 0, {
           text: '✅ Review & Approve',
@@ -324,30 +334,25 @@ const MyTasksScreen = ({ navigation }) => {
     Alert.alert(
       `🎯 ${task.title}`,
       `Status: ${task.status}\nPrice: ${task.price}\n${
-        userRole === 'requester' && task.assignedExpertName 
-          ? `Expert: ${task.assignedExpertName}\n` 
-          : userRole === 'expert' && task.requesterName 
-            ? `Requester: ${task.requesterName}\n` 
+        userRole === 'requester' && task.assignedExpertName
+          ? `Expert: ${task.assignedExpertName}\n`
+          : userRole === 'expert' && task.requesterName
+            ? `Requester: ${task.requesterName}\n`
             : ''
       }Due: ${task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}\n\nSelect an action:`,
       actions
     );
   }, [handleTaskPress, navigation, userRole]);
 
-  // ADDED: Action completion handler
+  // Handle action completion from TaskActionModal
   const handleActionComplete = useCallback((action, actionData) => {
     console.log(`✅ Action ${action} completed:`, actionData);
-    
-    // Refresh the task list to show updated status
-    loadTasks();
-    
-    // Close modal
+    loadTasks(); // Refresh the task list
     setShowActionModal(false);
     setSelectedTaskForAction(null);
     setActionType(null);
   }, [loadTasks]);
 
-  // Handle navigation actions
   const handleCreateTask = useCallback(() => {
     navigation?.navigate('PostTask');
   }, [navigation]);
@@ -356,37 +361,32 @@ const MyTasksScreen = ({ navigation }) => {
     navigation?.navigate('Home');
   }, [navigation]);
 
-  // Handle filters
   const handleApplyFilters = useCallback((newFilters) => {
     setFilters(newFilters);
   }, []);
 
-  // Filter tasks
+  // Filter tasks based on filters state
   const filteredTasks = React.useMemo(() => {
     let filtered = [...tasks];
-    
-    // Apply status filter
+
     if (filters.status !== 'all') {
       filtered = filtered.filter(task => task.status === filters.status);
     }
-    
-    // Apply search filter
+
     if (filters.search.trim()) {
       const query = filters.search.toLowerCase();
-      filtered = filtered.filter(task => 
+      filtered = filtered.filter(task =>
         task.title.toLowerCase().includes(query) ||
         task.subject.toLowerCase().includes(query) ||
         (task.assignedExpertName && task.assignedExpertName.toLowerCase().includes(query)) ||
         (task.requesterName && task.requesterName.toLowerCase().includes(query))
       );
     }
-    
-    // Apply urgency filter
+
     if (filters.urgency !== 'all') {
       filtered = filtered.filter(task => task.urgency === filters.urgency);
     }
-    
-    // Apply sorting
+
     switch (filters.sortBy) {
       case 'due_date_asc':
         filtered.sort((a, b) => {
@@ -417,11 +417,11 @@ const MyTasksScreen = ({ navigation }) => {
         });
         break;
     }
-    
+
     return filtered;
   }, [tasks, filters]);
 
-  // Render task card
+  // Render each task card
   const renderTaskCard = useCallback(({ item }) => (
     <EnhancedTaskCard
       task={item}
@@ -433,20 +433,19 @@ const MyTasksScreen = ({ navigation }) => {
     />
   ), [handleTaskPress, handleTaskAction, userRole]);
 
-  // Handle back press
   const handleBackPress = () => {
     if (navigation?.goBack) {
       navigation.goBack();
     }
   };
 
-  // Show loading screen for initial load
+  // Initial loading view
   if (loading && tasks.length === 0 && !error) {
     return (
-      <LoadingScreen 
+      <LoadingScreen
         message={`Loading your ${userRole} tasks...`}
         submessage={
-          userRole === 'requester' 
+          userRole === 'requester'
             ? "Fetching posted tasks and expert assignments..."
             : "Finding your accepted tasks and delivery status..."
         }
@@ -471,15 +470,25 @@ const MyTasksScreen = ({ navigation }) => {
         </View>
 
         {/* Role Toggle */}
-        <RoleToggle 
-          activeRole={userRole} 
+        <RoleToggle
+          activeRole={userRole}
           onRoleChange={handleRoleChange}
           requesterStats={requesterStats}
           expertStats={expertStats}
         />
 
+        {/* ADDED: Connection Status Indicator */}
+        <ConnectionStatusIndicator
+          isConnected={isConnected}
+          isRealTime={isRealTime}
+          lastUpdate={lastUpdate}
+          onRefresh={onRefresh}
+          compact={true}
+          style={styles.connectionStatus}
+        />
+
         {/* Statistics */}
-        <StatsCards stats={stats} role={userRole} />
+        <StatsCards stats={stats} />
 
         {/* Task Count and Instructions */}
         <View style={styles.taskCountContainer}>
@@ -505,7 +514,7 @@ const MyTasksScreen = ({ navigation }) => {
 
         {/* Task List or Empty State */}
         {filteredTasks.length === 0 ? (
-          <EmptyState 
+          <EmptyState
             role={userRole}
             onCreateTask={handleCreateTask}
             onBrowseTasks={handleBrowseTasks}
@@ -537,7 +546,7 @@ const MyTasksScreen = ({ navigation }) => {
           isRequester={userRole === 'requester'}
         />
 
-        {/* ADDED: Task Action Modal */}
+        {/* Task Action Modal */}
         <TaskActionModal
           visible={showActionModal}
           onClose={() => {
@@ -586,7 +595,7 @@ const styles = StyleSheet.create({
     color: '#2e7d32',
     fontWeight: '500',
   },
-  
+
   // Role Toggle Styles
   tabContainer: {
     flexDirection: 'row',
@@ -643,7 +652,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#666',
   },
-  
+
+  // ADDED: Connection Status style
+  connectionStatus: {
+    alignSelf: 'center',
+    marginVertical: 4,
+  },
+
   // Stats Styles
   statsContainer: {
     flexDirection: 'row',
@@ -679,7 +694,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textAlign: 'center',
   },
-  
+
   // Task Count & Instructions
   taskCountContainer: {
     paddingHorizontal: 16,
@@ -698,7 +713,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 16,
   },
-  
+
   // Error Banner
   errorBanner: {
     flexDirection: 'row',
@@ -729,12 +744,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  
+
   // Task List
   taskList: {
     paddingBottom: 20,
   },
-  
+
   // Empty State
   emptyContainer: {
     alignItems: 'center',

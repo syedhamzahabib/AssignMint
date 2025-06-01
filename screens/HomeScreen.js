@@ -24,6 +24,7 @@ import { useAppState } from '../services/AppStateManager';
 import ManualMatchTaskCard from '../components/task/ManualMatchTaskCard';
 import LoadingScreen, { ActionLoadingOverlay } from '../components/common/LoadingScreen';
 import ErrorBoundary from '../components/common/ErrorBoundary';
+import ConnectionStatusIndicator, { useConnectionStatus } from '../components/common/ConnectionStatusIndicator';
 
 // Constants
 const SUBJECTS = [
@@ -66,6 +67,15 @@ const HomeScreen = ({ navigation }) => {
 
   // App state for user role detection
   const { userRole } = useAppState();
+
+  // Connection status hook
+  const {
+    isConnected,
+    isRealTime,
+    lastUpdate,
+    updateConnectionStatus,
+    markDataUpdate,
+  } = useConnectionStatus();
 
   // Mock current user - replace with actual auth
   const currentUser = {
@@ -137,17 +147,24 @@ const HomeScreen = ({ navigation }) => {
       limit: 20,
     };
 
+    // Update connection status (initial attempt)
+    updateConnectionStatus(true, false);
+
     const subscription = firestoreService.subscribeToManualTasks(
       filters,
       (response) => {
         if (response.success) {
           setTasks(response.data);
           setError(null);
+          // Mark as real-time connected and record last update
+          updateConnectionStatus(true, true);
+          markDataUpdate();
           console.log(
             `🔄 Real-time update: ${response.data.length} manual tasks`
           );
         } else {
           setError(response.message);
+          updateConnectionStatus(false, false);
           console.error(
             'Manual tasks subscription error:',
             response.message
@@ -164,6 +181,7 @@ const HomeScreen = ({ navigation }) => {
     if (subscription) {
       setUnsubscribe(() => subscription);
     } else {
+      updateConnectionStatus(false, false);
       // Fallback to manual loading if subscription fails
       loadTasks();
     }
@@ -172,6 +190,7 @@ const HomeScreen = ({ navigation }) => {
     return () => {
       if (subscription) {
         console.log('🔄 Cleaning up manual tasks subscription');
+        updateConnectionStatus(false, false);
         subscription();
       }
     };
@@ -503,6 +522,16 @@ const HomeScreen = ({ navigation }) => {
             )}
           </View>
         </View>
+
+        {/* Connection Status */}
+        <ConnectionStatusIndicator
+          isConnected={isConnected}
+          isRealTime={isRealTime}
+          lastUpdate={lastUpdate}
+          onRefresh={() => loadTasks(false)}
+          compact={true}
+          style={styles.connectionStatus}
+        />
 
         {/* Search and Filter Bar */}
         <View style={styles.searchContainer}>
@@ -1028,6 +1057,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+
+  // Connection status indicator
+  connectionStatus: {
+    alignSelf: 'center',
+    marginVertical: SPACING.xs,
   },
 
   // Search and filter

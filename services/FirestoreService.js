@@ -1,4 +1,4 @@
-// services/FirestoreService.js - Enhanced with Manual Match support
+// services/FirestoreService.js - Enhanced with Connection Monitoring and Manual Match support
 import { 
   collection, 
   doc, 
@@ -28,6 +28,30 @@ class FirestoreService {
     REVIEWS: 'reviews',
     PAYMENTS: 'payments'
   };
+
+  // Connection status tracking
+  connectionListeners = new Set();
+  isConnected = true;
+
+  // Add connection listener
+  addConnectionListener(callback) {
+    this.connectionListeners.add(callback);
+    return () => this.connectionListeners.delete(callback);
+  }
+
+  // Notify all listeners about connection status change
+  notifyConnectionStatus(isConnected) {
+    if (this.isConnected !== isConnected) {
+      this.isConnected = isConnected;
+      this.connectionListeners.forEach(callback => {
+        try {
+          callback(isConnected);
+        } catch (error) {
+          console.error('Connection listener error:', error);
+        }
+      });
+    }
+  }
 
   // Enhanced task creation with Manual Match support
   async createTask(taskData) {
@@ -360,6 +384,8 @@ class FirestoreService {
       
       const unsubscribe = onSnapshot(q, 
         (querySnapshot) => {
+          this.notifyConnectionStatus(true);
+
           const tasks = [];
           
           querySnapshot.forEach((doc) => {
@@ -388,6 +414,7 @@ class FirestoreService {
         },
         (error) => {
           console.error(`❌ Real-time ${role} tasks error:`, error);
+          this.notifyConnectionStatus(false);
           callback({
             success: false,
             message: `Failed to subscribe to ${role} tasks: ` + error.message,
@@ -399,11 +426,12 @@ class FirestoreService {
       return unsubscribe;
     } catch (error) {
       console.error(`❌ Error setting up ${role} tasks subscription:`, error);
+      this.notifyConnectionStatus(false);
       return null;
     }
   }
 
-  // Subscribe to available manual tasks (real-time feed)
+  // Subscribe to available manual tasks (real-time feed) with connection monitoring
   subscribeToManualTasks(filters, callback) {
     try {
       let q = query(
@@ -430,6 +458,8 @@ class FirestoreService {
 
       const unsubscribe = onSnapshot(q,
         (querySnapshot) => {
+          this.notifyConnectionStatus(true);
+
           const tasks = [];
           
           querySnapshot.forEach((doc) => {
@@ -456,6 +486,7 @@ class FirestoreService {
         },
         (error) => {
           console.error('❌ Real-time manual tasks error:', error);
+          this.notifyConnectionStatus(false);
           callback({
             success: false,
             message: 'Failed to subscribe to manual tasks: ' + error.message,
@@ -467,6 +498,7 @@ class FirestoreService {
       return unsubscribe;
     } catch (error) {
       console.error('❌ Error setting up manual tasks subscription:', error);
+      this.notifyConnectionStatus(false);
       return null;
     }
   }
@@ -810,156 +842,158 @@ class FirestoreService {
       };
     }
   }
-    // services/FirestoreService.js - Additional methods for existing HomeScreen integration
-    // Add these methods to your existing FirestoreService.js
 
-    // Get manual match tasks (method for existing HomeScreen)
-    async getManualMatchTasks(filters = {}) {
+  // Get manual match tasks (method for existing HomeScreen)
+  async getManualMatchTasks(filters = {}) {
     try {
-        console.log('🔍 Getting manual match tasks with filters:', filters);
-        
-        let q = query(
+      console.log('🔍 Getting manual match tasks with filters:', filters);
+      
+      let q = query(
         collection(db, this.COLLECTIONS.TASKS),
         where('matchingType', '==', 'manual'),
         where('status', '==', 'awaiting_expert'),
         where('isActive', '==', true)
-        );
+      );
 
-        // Apply filters
-        if (filters.subject && filters.subject !== 'all') {
+      // Apply filters
+      if (filters.subject && filters.subject !== 'all') {
         q = query(q, where('subject', '==', filters.subject));
-        }
-        
-        if (filters.urgency && filters.urgency !== 'all') {
+      }
+      
+      if (filters.urgency && filters.urgency !== 'all') {
         q = query(q, where('urgency', '==', filters.urgency));
-        }
+      }
 
-        // Apply sorting
-        q = query(q, orderBy('createdAt', 'desc'), limit(20));
+      // Apply sorting
+      q = query(q, orderBy('createdAt', 'desc'), limit(20));
 
-        const querySnapshot = await getDocs(q);
-        const tasks = [];
+      const querySnapshot = await getDocs(q);
+      const tasks = [];
 
-        querySnapshot.forEach((doc) => {
+      querySnapshot.forEach((doc) => {
         const taskData = { id: doc.id, ...doc.data() };
         
         // Convert Firestore timestamps
         if (taskData.createdAt?.toDate) {
-            taskData.createdAt = taskData.createdAt.toDate().toISOString();
+          taskData.createdAt = taskData.createdAt.toDate().toISOString();
         }
         if (taskData.deadline?.toDate) {
-            taskData.deadline = taskData.deadline.toDate().toISOString();
+          taskData.deadline = taskData.deadline.toDate().toISOString();
         }
         
         tasks.push(taskData);
-        });
+      });
 
-        console.log(`✅ Found ${tasks.length} manual match tasks`);
-        
-        return {
+      console.log(`✅ Found ${tasks.length} manual match tasks`);
+      
+      return {
         success: true,
         data: tasks,
         count: tasks.length
-        };
+      };
     } catch (error) {
-        console.error('❌ Error getting manual match tasks:', error);
-        return {
+      console.error('❌ Error getting manual match tasks:', error);
+      return {
         success: false,
         message: 'Failed to load tasks: ' + error.message,
         data: []
-        };
+      };
     }
-    }
+  }
 
-    // Subscribe to manual match tasks (for existing HomeScreen)
-    subscribeToManualMatchTasks(callback) {
+  // Subscribe to manual match tasks (for existing HomeScreen)
+  subscribeToManualMatchTasks(callback) {
     try {
-        console.log('🔄 Setting up manual match tasks subscription...');
-        
-        const q = query(
+      console.log('🔄 Setting up manual match tasks subscription...');
+      
+      const q = query(
         collection(db, this.COLLECTIONS.TASKS),
         where('matchingType', '==', 'manual'),
         where('status', '==', 'awaiting_expert'),
         where('isActive', '==', true),
         orderBy('createdAt', 'desc'),
         limit(20)
-        );
+      );
 
-        const unsubscribe = onSnapshot(q,
+      const unsubscribe = onSnapshot(q,
         (querySnapshot) => {
-            const tasks = [];
-            
-            querySnapshot.forEach((doc) => {
+          this.notifyConnectionStatus(true);
+
+          const tasks = [];
+          
+          querySnapshot.forEach((doc) => {
             const taskData = { id: doc.id, ...doc.data() };
             
             // Convert timestamps
             if (taskData.createdAt?.toDate) {
-                taskData.createdAt = taskData.createdAt.toDate().toISOString();
+              taskData.createdAt = taskData.createdAt.toDate().toISOString();
             }
             if (taskData.deadline?.toDate) {
-                taskData.deadline = taskData.deadline.toDate().toISOString();
+              taskData.deadline = taskData.deadline.toDate().toISOString();
             }
             
             tasks.push(taskData);
-            });
-            
-            console.log(`🔄 Real-time manual match tasks update: ${tasks.length} tasks`);
-            
-            callback({
+          });
+          
+          console.log(`🔄 Real-time manual match tasks update: ${tasks.length} tasks`);
+          
+          callback({
             success: true,
             data: tasks,
             count: tasks.length
-            });
+          });
         },
         (error) => {
-            console.error('❌ Real-time manual match tasks error:', error);
-            callback({
+          console.error('❌ Real-time manual match tasks error:', error);
+          this.notifyConnectionStatus(false);
+          callback({
             success: false,
             message: 'Failed to subscribe to tasks: ' + error.message,
             data: []
-            });
+          });
         }
-        );
-        
-        return unsubscribe;
+      );
+      
+      return unsubscribe;
     } catch (error) {
-        console.error('❌ Error setting up manual match tasks subscription:', error);
-        return null;
+      console.error('❌ Error setting up manual match tasks subscription:', error);
+      this.notifyConnectionStatus(false);
+      return null;
     }
-    }
+  }
 
-    // Accept task (for existing HomeScreen)
-    async acceptTask(taskId, expertId, expertName) {
+  // Accept task (for existing HomeScreen)
+  async acceptTask(taskId, expertId, expertName) {
     try {
-        console.log('🎯 Expert accepting task:', { taskId, expertId, expertName });
-        
-        return await runTransaction(db, async (transaction) => {
+      console.log('🎯 Expert accepting task:', { taskId, expertId, expertName });
+      
+      return await runTransaction(db, async (transaction) => {
         const taskRef = doc(db, this.COLLECTIONS.TASKS, taskId);
         const taskDoc = await transaction.get(taskRef);
         
         if (!taskDoc.exists()) {
-            throw new Error('Task not found');
+          throw new Error('Task not found');
         }
         
         const taskData = taskDoc.data();
         
         // Check if task is still available
         if (taskData.status !== 'awaiting_expert') {
-            throw new Error('Task is no longer available');
+          throw new Error('Task is no longer available');
         }
         
         if (taskData.assignedExpertId) {
-            throw new Error('Task has already been assigned to another expert');
+          throw new Error('Task has already been assigned to another expert');
         }
         
         // Update task with expert assignment
         const updateData = {
-            status: 'working', // Use 'working' status for expert view
-            assignedExpertId: expertId,
-            assignedExpertName: expertName,
-            assignedAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            isActive: false, // Remove from public feed
+          status: 'working', // Use 'working' status for expert view
+          assignedExpertId: expertId,
+          assignedExpertName: expertName,
+          assignedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          isActive: false, // Remove from public feed
         };
         
         transaction.update(taskRef, updateData);
@@ -967,58 +1001,59 @@ class FirestoreService {
         // Create notification for requester
         const notificationRef = doc(collection(db, this.COLLECTIONS.NOTIFICATIONS));
         transaction.set(notificationRef, {
-            userId: taskData.requesterId,
-            type: 'task_accepted',
-            title: 'Expert Found!',
-            message: `${expertName} has accepted your task: "${taskData.title}"`,
-            taskId: taskId,
-            expertId: expertId,
-            expertName: expertName,
-            createdAt: serverTimestamp(),
-            read: false
+          userId: taskData.requesterId,
+          type: 'task_accepted',
+          title: 'Expert Found!',
+          message: `${expertName} has accepted your task: "${taskData.title}"`,
+          taskId: taskId,
+          expertId: expertId,
+          expertName: expertName,
+          createdAt: serverTimestamp(),
+          read: false
         });
         
         console.log('✅ Task accepted successfully');
         
         return {
-            success: true,
-            message: `Task "${taskData.title}" accepted successfully! You can now start working on it.`,
-            taskData: { ...taskData, ...updateData }
+          success: true,
+          message: `Task "${taskData.title}" accepted successfully! You can now start working on it.`,
+          taskData: { ...taskData, ...updateData }
         };
-        });
-        
+      });
+      
     } catch (error) {
-        console.error('❌ Error accepting task:', error);
-        return {
+      console.error('❌ Error accepting task:', error);
+      return {
         success: false,
         message: error.message || 'Failed to accept task. Please try again.'
-        };
+      };
     }
-    }
+  }
 
-    // Increment task views (for existing HomeScreen)
-    async incrementTaskViews(taskId) {
+  // Increment task views (for existing HomeScreen)
+  async incrementTaskViews(taskId) {
     try {
-        const taskRef = doc(db, this.COLLECTIONS.TASKS, taskId);
-        await updateDoc(taskRef, {
+      const taskRef = doc(db, this.COLLECTIONS.TASKS, taskId);
+      await updateDoc(taskRef, {
         viewCount: increment(1),
         lastViewedAt: serverTimestamp()
-        });
-        
-        console.log(`👁️ Incremented view count for task: ${taskId}`);
-        
-        return {
+      });
+      
+      console.log(`👁️ Incremented view count for task: ${taskId}`);
+      
+      return {
         success: true,
         message: 'View count updated'
-        };
+      };
     } catch (error) {
-        console.error('❌ Error incrementing view count:', error);
-        return {
+      console.error('❌ Error incrementing view count:', error);
+      return {
         success: false,
         message: 'Failed to update view count'
-        };
+      };
     }
-    }
+  }
+
   // Get task statistics
   async getTaskStats(userId, role = 'requester') {
     try {

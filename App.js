@@ -1,4 +1,4 @@
-// App.js - Fixed version with proper UploadDeliveryScreen registration
+// App.js - Updated with Global Network Status Monitoring
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
 
@@ -6,6 +6,7 @@ import { SafeAreaView, StyleSheet, View } from 'react-native';
 import AppHeader, { HomeHeader } from './components/common/AppHeader';
 import TabBar from './components/common/TabBar';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import NetworkStatus from './components/common/NetworkStatus';
 import { useAppState } from './services/AppStateManager';
 import { useModal } from './components/common/ModalManager';
 
@@ -18,7 +19,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import WalletScreen from './screens/WalletScreen';
 import TaskDetailsScreen from './screens/TaskDetailsScreen';
 import UploadDeliveryScreen from './screens/UploadDeliveryScreen';
-import TaskActionScreen from './screens/TaskActionScreen'; // Keep existing import
+import TaskActionScreen from './screens/TaskActionScreen';
 
 // Import constants
 import { COLORS, SCREEN_NAMES } from './constants';
@@ -32,7 +33,7 @@ const App = () => {
     unreadNotifications,
     isInitialized,
     isLoading,
-    
+
     // Actions (these are now memoized in the hook)
     initialize,
     setActiveTab,
@@ -41,10 +42,13 @@ const App = () => {
   } = useAppState();
 
   const { ModalComponent } = useModal();
-  
+
+  // Global network status state
+  const [networkStatus, setNetworkStatus] = useState(true);
+
   // Navigation stack state with proper initialization
   const [navigationStack, setNavigationStack] = useState([{ name: 'Home', params: {} }]);
-  
+
   // Get current screen from navigation stack
   const currentScreen = navigationStack[navigationStack.length - 1];
 
@@ -61,28 +65,28 @@ const App = () => {
   const navigation = useMemo(() => ({
     navigate: (screenName, params = {}) => {
       console.log(`🧭 Navigating to: ${screenName}`, params);
-      
+
       if (screenName === 'Wallet') {
         openWallet(params);
         return;
       }
-      
+
       // Add to navigation stack
       setNavigationStack(prev => [...prev, { name: screenName, params }]);
     },
-    
+
     goBack: () => {
       if (showWallet) {
         closeWallet();
         return;
       }
-      
+
       if (navigationStack.length > 1) {
         setNavigationStack(prev => prev.slice(0, -1));
         console.log('🧭 Going back');
       }
     },
-    
+
     reset: (routes) => {
       if (routes && routes.routes) {
         setNavigationStack(routes.routes);
@@ -109,67 +113,67 @@ const App = () => {
     // Handle wallet screen overlay
     if (showWallet) {
       return (
-        <WalletScreen 
-          navigation={navigation} 
-          route={{ params: walletParams }} 
+        <WalletScreen
+          navigation={navigation}
+          route={{ params: walletParams }}
         />
       );
     }
 
-    // Handle navigation stack screens - FIXED: Added UploadDelivery case
+    // Handle navigation stack screens
     switch (currentScreen.name) {
       case 'TaskDetails':
         return (
-          <TaskDetailsScreen 
-            navigation={navigation} 
-            route={{ params: currentScreen.params }} 
+          <TaskDetailsScreen
+            navigation={navigation}
+            route={{ params: currentScreen.params }}
           />
         );
-        
+
       case 'UploadDelivery':
         return (
-          <UploadDeliveryScreen 
-            navigation={navigation} 
-            route={{ params: currentScreen.params }} 
+          <UploadDeliveryScreen
+            navigation={navigation}
+            route={{ params: currentScreen.params }}
           />
         );
 
       case 'TaskAction':
         return (
-          <TaskActionScreen 
-            navigation={navigation} 
-            route={{ params: currentScreen.params }} 
+          <TaskActionScreen
+            navigation={navigation}
+            route={{ params: currentScreen.params }}
           />
         );
-        
+
       default:
         // Render main tab screens
         switch (activeTab) {
           case SCREEN_NAMES.HOME:
           case 'home':
             return <HomeScreen navigation={navigation} />;
-            
+
           case SCREEN_NAMES.POST_TASK:
           case 'post':
             return <PostScreen navigation={navigation} />;
-            
+
           case SCREEN_NAMES.MY_TASKS:
           case 'tasks':
             return <MyTasksScreen navigation={navigation} />;
-            
+
           case SCREEN_NAMES.NOTIFICATIONS:
           case 'notifications':
             return <NotificationsScreen navigation={navigation} />;
-            
+
           case SCREEN_NAMES.PROFILE:
           case 'profile':
             return <ProfileScreen navigation={navigation} />;
-            
+
           default:
             return <HomeScreen navigation={navigation} />;
         }
     }
-  }), [showWallet, walletParams, currentScreen, activeTab, navigation]);
+  }, [showWallet, walletParams, currentScreen, activeTab, navigation]);
 
   // Memoized header renderer
   const renderHeader = useCallback(() => {
@@ -182,7 +186,7 @@ const App = () => {
         return <HomeHeader onProfilePress={handleProfilePress} />;
       default:
         return (
-          <AppHeader 
+          <AppHeader
             title="AssignMint"
             subtitle="Assignment Help Marketplace"
           />
@@ -192,7 +196,7 @@ const App = () => {
 
   // Memoized tab bar visibility check
   const shouldShowTabBar = useCallback(() => {
-    // Hide tab bar for certain screens - UPDATED: Added UploadDelivery to list
+    // Hide tab bar for certain screens
     const hideTabBarScreens = ['TaskDetails', 'UploadDelivery', 'TaskAction'];
     return !showWallet && !hideTabBarScreens.includes(currentScreen.name);
   }, [showWallet, currentScreen.name]);
@@ -200,6 +204,9 @@ const App = () => {
   return (
     <ErrorBoundary>
       <SafeAreaView style={styles.container}>
+        {/* Global Network Status */}
+        <NetworkStatus onStatusChange={setNetworkStatus} />
+
         {/* Header */}
         {renderHeader()}
 
