@@ -1,7 +1,29 @@
-// components/common/NetworkStatus.js
+// components/common/NetworkStatus.js - Fixed imports
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { COLORS, FONTS, SPACING } from '../../constants';
+
+// Define constants directly
+const COLORS = {
+  error: '#f44336',
+  white: '#ffffff',
+  black: '#000000',
+};
+
+const FONTS = {
+  sizes: {
+    sm: 12,
+    md: 14,
+  },
+  weights: {
+    semiBold: '600',
+  },
+};
+
+const SPACING = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+};
 
 const NetworkStatus = ({ onStatusChange }) => {
   const [isOnline, setIsOnline] = useState(true);

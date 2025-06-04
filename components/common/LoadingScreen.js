@@ -1,6 +1,4 @@
-// src/components/common/LoadingScreen.js
-// Reusable loading screen component
-
+// components/common/LoadingScreen.js - Fixed imports
 import React from 'react';
 import {
   View,
@@ -8,8 +6,49 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  TouchableOpacity,
 } from 'react-native';
-import { COLORS, FONTS, SPACING } from '../../constants';
+
+// Define constants directly to avoid import issues
+const COLORS = {
+  primary: '#2e7d32',
+  white: '#ffffff',
+  black: '#000000',
+  gray50: '#fafafa',
+  gray200: '#eeeeee',
+  gray400: '#bdbdbd',
+  gray600: '#757575',
+  gray700: '#616161',
+  gray800: '#424242',
+  background: '#f4f5f9',
+  cardBackground: '#ffffff',
+  error: '#f44336',
+  success: '#4caf50',
+};
+
+const FONTS = {
+  sizes: {
+    xs: 10,
+    sm: 12,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    title: 28,
+  },
+  weights: {
+    medium: '500',
+    semiBold: '600',
+    bold: '700',
+  },
+};
+
+const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+};
 
 const LoadingScreen = ({ 
   message = 'Loading...', 

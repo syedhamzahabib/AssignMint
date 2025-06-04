@@ -1,0 +1,28 @@
+platform :ios, '13.0'
+
+require_relative '../node_modules/react-native/scripts/react_native_pods'
+
+target 'TempNativeApp' do
+  config = use_native_modules!
+
+  use_frameworks! :linkage => :static  # ✅ Add this line
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :hermes_enabled => true
+    # <-- no flipper here
+  )
+
+  post_install do |installer|
+    react_native_post_install(installer)
+
+    # ✅ Exclude arm64 for iOS simulator to fix RCT-Folly build issue
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
+      end
+    end
+  end
+end
+
+source 'https://cdn.cocoapods.org/'

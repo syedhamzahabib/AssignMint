@@ -1,7 +1,37 @@
-// components/common/ConnectionStatusIndicator.js
+// components/common/ConnectionStatusIndicator.js - Fixed imports
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { COLORS, FONTS, SPACING } from '../../constants';
+
+// Define colors and spacing directly to avoid import issues
+const COLORS = {
+  error: '#f44336',
+  success: '#4caf50',
+  primary: '#2e7d32',
+  black: '#000000',
+  white: '#ffffff',
+  gray600: '#757575',
+};
+
+const FONTS = {
+  sizes: {
+    xs: 10,
+    sm: 12,
+    md: 14,
+    lg: 16,
+  },
+  weights: {
+    medium: '500',
+    semiBold: '600',
+  },
+};
+
+const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+};
 
 const ConnectionStatusIndicator = ({ 
   isConnected = true,
